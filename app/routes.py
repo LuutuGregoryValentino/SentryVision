@@ -4,6 +4,14 @@ from datetime import datetime
 from flask import Blueprint, current_app, jsonify, request
 from werkzeug.utils import secure_filename
 
+
+def _require_api_key():
+    expected_key = current_app.config.get("API_KEY")
+    provided_key = request.headers.get("X-API-Key")
+    if expected_key and provided_key != expected_key:
+        return False
+    return True
+
 from .extensions import db
 from .models import DetectionLog, DeviceStatus, utc_now
 from .schemas import DeviceStatusUpdateSchema, FacialRecognitionSchema
@@ -11,6 +19,7 @@ from .services import process_facial_recognition
 
 
 api_bp = Blueprint("api", __name__, url_prefix="/api/v1")
+telemetry_bp = Blueprint("telemetry", __name__, url_prefix="/api")
 
 facial_schema = FacialRecognitionSchema()
 device_update_schema = DeviceStatusUpdateSchema()
@@ -34,6 +43,21 @@ def save_uploaded_image(file_storage):
 @api_bp.route("/health/", methods=["GET"])
 def health_check():
     return jsonify({"status": "ok"}), 200
+
+
+@telemetry_bp.route("/telemetry", methods=["POST"])
+def telemetry():
+    if not _require_api_key():
+        return jsonify({"error": "Unauthorized"}), 401
+
+    payload = request.get_json(silent=True) or {}
+    return jsonify({
+        "status": "ok",
+        "motion": payload.get("motion", False),
+        "distance": payload.get("distance"),
+        "alarm": payload.get("alarm", False),
+        "servo_angle": payload.get("servo_angle"),
+    }), 200
 
 
 @api_bp.route("/facial-recognition/", methods=["POST"])

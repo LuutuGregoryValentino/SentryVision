@@ -3,7 +3,7 @@ from marshmallow import ValidationError
 
 from config import Config
 from .extensions import db
-from .routes import api_bp
+from .routes import api_bp, telemetry_bp
 from .seed import seed_database
 
 
@@ -13,6 +13,7 @@ def create_app(config_object=Config):
 
     db.init_app(app)
     app.register_blueprint(api_bp)
+    app.register_blueprint(telemetry_bp)
 
     @app.cli.command("init-db")
     def init_db_command():
