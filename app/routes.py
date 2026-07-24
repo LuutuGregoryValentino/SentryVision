@@ -1,4 +1,8 @@
-from flask import Blueprint, jsonify, request
+import os
+from datetime import datetime
+
+from flask import Blueprint, current_app, jsonify, request
+from werkzeug.utils import secure_filename
 
 from .extensions import db
 from .models import DetectionLog, DeviceStatus, utc_now
@@ -12,6 +16,21 @@ facial_schema = FacialRecognitionSchema()
 device_update_schema = DeviceStatusUpdateSchema()
 
 
+def save_uploaded_image(file_storage):
+    if file_storage is None or file_storage.filename == "":
+        return None
+
+    upload_dir = os.path.join(current_app.instance_path, "uploads")
+    os.makedirs(upload_dir, exist_ok=True)
+
+    filename = secure_filename(file_storage.filename)
+    timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S%f")
+    filename = f"{timestamp}_{filename}"
+    destination = os.path.join(upload_dir, filename)
+    file_storage.save(destination)
+    return destination
+
+
 @api_bp.route("/health/", methods=["GET"])
 def health_check():
     return jsonify({"status": "ok"}), 200
@@ -19,11 +38,31 @@ def health_check():
 
 @api_bp.route("/facial-recognition/", methods=["POST"])
 def facial_recognition():
-    if not request.is_json:
-        return jsonify({"error": "Content-Type must be application/json"}), 415
+    request_content_type = request.content_type or ""
+    saved_image_name = None
 
-    payload = facial_schema.load(request.get_json())
+    if request.is_json:
+        payload = facial_schema.load(request.get_json())
+    elif request_content_type.startswith("multipart/form-data"):
+        if "image" not in request.files:
+            return jsonify({"error": "Multipart request must include an image file under the 'image' field."}), 415
+
+        saved_image_path = save_uploaded_image(request.files["image"])
+        if saved_image_path:
+            saved_image_name = os.path.basename(saved_image_path)
+
+        form_data = request.form.to_dict()
+        if "detected_label" in form_data and "label" not in form_data:
+            form_data["label"] = form_data["detected_label"]
+
+        payload = facial_schema.load(form_data)
+    else:
+        return jsonify({"error": "Content-Type must be application/json or multipart/form-data"}), 415
+
     response, status_code = process_facial_recognition(payload["label"])
+    if saved_image_name:
+        response = {**response, "image_saved": saved_image_name}
+
     return jsonify(response), status_code
 
 

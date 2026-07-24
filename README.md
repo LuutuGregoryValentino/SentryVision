@@ -45,6 +45,23 @@ Response:
 }
 ```
 
+Multipart upload with image and label:
+
+```powershell
+$body = @{
+  label = 'Kessie'
+  trigger_source = 'motion'
+  image = Get-Item 'frame.jpg'
+}
+Invoke-RestMethod `
+  -Method Post `
+  -Uri http://localhost:5000/api/v1/facial-recognition/ `
+  -ContentType 'multipart/form-data' `
+  -Body $body
+```
+
+The backend will save the uploaded image and still use the `label` value to determine recognition.
+
 Unrecognized:
 
 ```powershell
