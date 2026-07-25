@@ -162,12 +162,24 @@ async function runRecognition(event) {
 
 function formatMetric(metric) {
     if (!metric || metric.value === null || metric.value === undefined) {
-        return { value: "-", unit: "" };
+        return { name: "metric", value: "-", unit: "" };
     }
     return {
+        name: metric.name || "metric",
         value: Number.isInteger(metric.value) ? metric.value : Number(metric.value).toFixed(1),
         unit: metric.unit || "",
     };
+}
+
+function formatDate(dateString) {
+    if (!dateString) {
+        return "-";
+    }
+    const parsed = Date.parse(dateString);
+    if (Number.isNaN(parsed)) {
+        return dateString;
+    }
+    return new Date(parsed).toLocaleString();
 }
 
 function escapeHtml(value) {
@@ -194,7 +206,7 @@ function renderDevice(device) {
                 <span class="device-state ${escapeHtml(stateClass)}">${escapeHtml(device.status)}</span>
             </header>
             <p class="metric">${escapeHtml(metric.value)} <span>${escapeHtml(metric.unit)}</span></p>
-            <p class="device-meta">${escapeHtml(device.metric?.name || "metric")} · ${escapeHtml(device.last_ping || "-")}</p>
+            <p class="device-meta"><strong>${escapeHtml(metric.name)}</strong> · Last seen ${escapeHtml(formatDate(device.last_ping))}</p>
             <p class="device-meta">${escapeHtml(metaText || "No metadata")}</p>
         </article>
     `;
