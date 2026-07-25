@@ -131,8 +131,10 @@ h3 { margin-bottom: 0; font-size: 1rem; }
 .gallery-empty-icon { color: var(--cyan); font-size: 1.9rem; }
 
 .face-card { position: relative; display: flex; flex-direction: column; height: 224px; overflow: hidden; min-width: 0; border: 2px solid var(--line); border-radius: 2px; background: var(--panel-strong); }
-.face-image { display: block; width: 100%; height: 128px; flex: 0 0 128px; background: #c9a88e; object-fit: cover; }
+.face-image-link { display: block; width: 100%; height: 128px; flex: 0 0 128px; }
+.face-image { display: block; width: 100%; height: 100%; background: #c9a88e; object-fit: cover; }
 .face-details { padding: 10px; }
+.face-details .gallery-link { display: inline-block; margin-top: 7px; color: var(--cyan); font-size: 0.66rem; font-weight: 700; text-decoration: underline; }
 .face-meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 9px; }
 .face-name { margin: 0; overflow: hidden; color: var(--text); font-size: 0.87rem; font-weight: 730; text-overflow: ellipsis; white-space: nowrap; }
 .confidence { padding: 3px 6px; color: var(--text); font-size: 0.66rem; }

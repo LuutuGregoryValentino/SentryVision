@@ -123,7 +123,9 @@ function renderCaptures() {
     elements.captureGallery.className = "capture-gallery";
     elements.captureGallery.innerHTML = state.captures.map((capture) => `
         <article class="face-card">
-            <img class="face-image" src="${escapeHtml(capture.imageUrl)}" alt="Captured face for ${escapeHtml(capture.name)}">
+            <a class="face-image-link" href="${escapeHtml(capture.imageUrl)}" target="_blank" rel="noopener noreferrer">
+                <img class="face-image" src="${escapeHtml(capture.imageUrl)}" alt="Captured face for ${escapeHtml(capture.name)}">
+            </a>
             <div class="face-details">
                 <div class="face-meta">
                     <p class="face-name">${escapeHtml(capture.name)}</p>
@@ -131,13 +133,15 @@ function renderCaptures() {
                 </div>
                 <span class="face-status ${capture.status.toLowerCase()}">${escapeHtml(capture.status)}</span>
                 <p class="face-time">${escapeHtml(capture.time)}</p>
+                <a class="gallery-link" href="${escapeHtml(capture.imageUrl)}" target="_blank" rel="noopener noreferrer">Open image</a>
             </div>
         </article>`).join("");
 }
 
 function addCapture(payload) {
+    const imageUrl = payload.image_url || elements.image.src;
     state.captures.unshift({
-        imageUrl: elements.image.src,
+        imageUrl,
         name: payload.recognized ? (payload.name || "Possible match") : "Unknown",
         confidence: payload.confidence,
         status: statusForCapture(payload),

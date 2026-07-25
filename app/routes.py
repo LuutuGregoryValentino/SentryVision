@@ -1,7 +1,7 @@
 import os
 from datetime import datetime, timezone
 
-from flask import Blueprint, current_app, jsonify, request, send_from_directory
+from flask import Blueprint, current_app, jsonify, request, send_from_directory, url_for
 from werkzeug.utils import secure_filename
 
 from .extensions import db
@@ -96,27 +96,18 @@ def facial_recognition():
     else:
         return jsonify({"error": "Content-Type must be multipart/form-data with an image file."}), 415
 
-    label = payload.get("label") or "unknown"
-    
-    # Process recognition logic, including the saved image path so the response correctly reflects that a file was received
-    response, status_code = process_facial_recognition(label, image_path=saved_image_path)
+    # Process the saved image with the recognition engine and return a preview URL for the frontend.
+    response, status_code = process_facial_recognition(saved_image_path, image_filename=saved_image_name)
 
-    # Attach public URL and filename to JSON response for frontend consumption
+    # Attach a frontend-safe URL for previewing the captured image
     if saved_image_name:
-        image_url = f"{request.host_url.rstrip('/')}/api/v1/uploads/{saved_image_name}"
         response = {
             **response,
             "image_saved": saved_image_name,
-            "image_url": image_url
+            "image_url": url_for("api.serve_upload", filename=saved_image_name),
         }
 
     return jsonify(response), status_code
-
-
-@api_bp.route("/uploads/<path:filename>", methods=["GET"])
-def uploaded_image(filename):
-    upload_dir = os.path.join(current_app.instance_path, "uploads")
-    return send_from_directory(upload_dir, filename)
 
 
 @api_bp.route("/device-status/", methods=["GET"])
