@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, render_template
 from marshmallow import ValidationError
 
 from config import Config
@@ -14,6 +14,10 @@ def create_app(config_object=Config):
     db.init_app(app)
     app.register_blueprint(api_bp)
     app.register_blueprint(telemetry_bp)
+
+    @app.route("/")
+    def dashboard():
+        return render_template("dashboard.html")
 
     @app.cli.command("init-db")
     def init_db_command():

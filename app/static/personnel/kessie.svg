@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-label="Kessie face reference">
+  <rect width="240" height="240" fill="#e8f1ff"/>
+  <circle cx="120" cy="104" r="52" fill="#8b5e3c"/>
+  <path d="M64 226c8-50 34-76 56-76s48 26 56 76z" fill="#2563eb"/>
+  <path d="M72 94c7-41 31-61 61-57 28 4 43 25 37 62-17-12-43-19-98-5z" fill="#263238"/>
+  <circle cx="101" cy="104" r="5" fill="#1f2933"/>
+  <circle cx="139" cy="104" r="5" fill="#1f2933"/>
+  <path d="M101 132c12 10 26 10 38 0" fill="none" stroke="#442b1d" stroke-width="7" stroke-linecap="round"/>
+</svg>

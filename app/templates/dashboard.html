@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sentry Vision</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <main class="shell">
+        <header class="topbar">
+            <div>
+                <p class="eyebrow">Sentry Vision</p>
+                <h1>Facial Recognition Console</h1>
+            </div>
+            <div class="health-pill" id="health-status">Checking API</div>
+        </header>
+
+        <section class="recognition-grid" aria-label="Facial recognition result">
+            <article class="panel media-panel">
+                <div class="panel-header">
+                    <div>
+                        <p class="eyebrow">Input</p>
+                        <h2>Taken Image</h2>
+                    </div>
+                    <span class="status-dot idle" id="capture-state"></span>
+                </div>
+
+                <div class="preview-frame">
+                    <video id="camera-stream" autoplay muted playsinline hidden></video>
+                    <img id="captured-image" alt="Taken security camera frame" hidden>
+                    <div class="empty-preview" id="empty-preview">
+                        <span>Camera frame</span>
+                    </div>
+                </div>
+
+                <div class="controls">
+                    <button type="button" id="start-camera">Start Camera</button>
+                    <button type="button" id="capture-photo" disabled>Capture</button>
+                    <label class="file-control">
+                        Upload
+                        <input type="file" id="image-file" accept="image/*">
+                    </label>
+                </div>
+            </article>
+
+            <article class="panel person-panel">
+                <div class="panel-header">
+                    <div>
+                        <p class="eyebrow">Match</p>
+                        <h2>Recognized Face</h2>
+                    </div>
+                    <span class="authorization-badge neutral" id="authorization-status">Waiting</span>
+                </div>
+
+                <div class="identity-layout">
+                    <img class="person-photo" id="recognized-face" src="{{ url_for('static', filename='personnel/unknown.svg') }}" alt="Recognized face image">
+                    <dl class="identity-details">
+                        <div>
+                            <dt>Name</dt>
+                            <dd id="person-name">No match yet</dd>
+                        </div>
+                        <div>
+                            <dt>Role</dt>
+                            <dd id="person-role">-</dd>
+                        </div>
+                        <div>
+                            <dt>Status</dt>
+                            <dd id="person-status">-</dd>
+                        </div>
+                    </dl>
+                </div>
+
+                <form id="recognition-form" class="recognition-form">
+                    <label for="label-select">Detected Label</label>
+                    <div class="form-row">
+                        <select id="label-select" name="label">
+                            <option value="Kessie">Kessie</option>
+                            <option value="Anold">Anold</option>
+                            <option value="Faith">Faith</option>
+                            <option value="Misha">Misha</option>
+                            <option value="Luutu">Luutu</option>
+                            <option value="Unknown">Unknown</option>
+                        </select>
+                        <button type="submit" id="run-recognition">Run Check</button>
+                    </div>
+                </form>
+
+                <p class="message" id="recognition-message" role="status"></p>
+            </article>
+        </section>
+
+        <section class="device-section" aria-label="Device status">
+            <div class="section-header">
+                <div>
+                    <p class="eyebrow">Devices</p>
+                    <h2>Device Status</h2>
+                </div>
+                <button type="button" id="refresh-devices">Refresh</button>
+            </div>
+            <div class="device-grid" id="device-grid"></div>
+        </section>
+    </main>
+
+    <canvas id="capture-canvas" hidden></canvas>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

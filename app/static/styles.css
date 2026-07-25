@@ -1,0 +1,391 @@
+:root {
+    --bg: #f5f7f9;
+    --panel: #ffffff;
+    --text: #17202a;
+    --muted: #657384;
+    --line: #d8e0e7;
+    --blue: #2563eb;
+    --green: #138a52;
+    --red: #b42318;
+    --amber: #9a6700;
+    --ink: #243447;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", Arial, sans-serif;
+}
+
+button,
+select,
+input {
+    font: inherit;
+}
+
+button,
+.file-control {
+    border: 1px solid var(--line);
+    background: #ffffff;
+    color: var(--ink);
+    border-radius: 6px;
+    min-height: 40px;
+    padding: 0 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+button:hover,
+.file-control:hover {
+    border-color: #9fb0c2;
+}
+
+button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.shell {
+    width: min(1180px, calc(100% - 32px));
+    margin: 0 auto;
+    padding: 28px 0 42px;
+}
+
+.topbar,
+.section-header,
+.panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.topbar {
+    margin-bottom: 20px;
+}
+
+.eyebrow {
+    margin: 0 0 4px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0;
+    text-transform: uppercase;
+}
+
+h1,
+h2 {
+    margin: 0;
+    letter-spacing: 0;
+}
+
+h1 {
+    font-size: 28px;
+    line-height: 1.15;
+}
+
+h2 {
+    font-size: 18px;
+    line-height: 1.25;
+}
+
+.health-pill,
+.authorization-badge {
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: #ffffff;
+    color: var(--muted);
+    padding: 7px 10px;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.health-pill.ok,
+.authorization-badge.authorized {
+    color: var(--green);
+    background: #ebf8f1;
+    border-color: #b8e2c9;
+}
+
+.health-pill.error,
+.authorization-badge.unauthorized {
+    color: var(--red);
+    background: #fff0ee;
+    border-color: #f4bbb4;
+}
+
+.recognition-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 18px;
+    align-items: stretch;
+}
+
+.panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 18px;
+}
+
+.status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    background: var(--muted);
+}
+
+.status-dot.ready {
+    background: var(--green);
+}
+
+.status-dot.busy {
+    background: var(--amber);
+}
+
+.preview-frame {
+    position: relative;
+    margin-top: 16px;
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: #101820;
+}
+
+.preview-frame video,
+.preview-frame img,
+.empty-preview {
+    width: 100%;
+    height: 100%;
+}
+
+.preview-frame video,
+.preview-frame img {
+    display: block;
+    object-fit: cover;
+}
+
+.empty-preview {
+    display: grid;
+    place-items: center;
+    color: #cbd5df;
+    font-weight: 700;
+}
+
+.controls,
+.form-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+}
+
+.file-control input {
+    display: none;
+}
+
+.identity-layout {
+    display: grid;
+    grid-template-columns: 178px minmax(0, 1fr);
+    gap: 18px;
+    align-items: center;
+    margin-top: 18px;
+}
+
+.person-photo {
+    width: 178px;
+    aspect-ratio: 1;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    object-fit: cover;
+    background: #eef2f6;
+}
+
+.identity-details {
+    margin: 0;
+    display: grid;
+    gap: 12px;
+}
+
+.identity-details div {
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 10px;
+}
+
+.identity-details dt {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.identity-details dd {
+    margin: 3px 0 0;
+    font-size: 18px;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.recognition-form {
+    margin-top: 18px;
+}
+
+.recognition-form label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+select {
+    min-height: 40px;
+    min-width: 180px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #ffffff;
+    color: var(--text);
+    padding: 0 10px;
+}
+
+#run-recognition {
+    background: var(--blue);
+    color: #ffffff;
+    border-color: var(--blue);
+}
+
+.message {
+    min-height: 20px;
+    margin: 14px 0 0;
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.device-section {
+    margin-top: 22px;
+}
+
+.device-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    margin-top: 14px;
+}
+
+.device-card {
+    background: #ffffff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px;
+    min-height: 168px;
+}
+
+.device-card header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.device-name {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.device-state {
+    border-radius: 999px;
+    padding: 4px 8px;
+    background: #edf2f7;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.device-state.online,
+.device-state.active {
+    background: #ebf8f1;
+    color: var(--green);
+}
+
+.device-state.offline {
+    background: #fff0ee;
+    color: var(--red);
+}
+
+.metric {
+    margin: 16px 0 8px;
+    font-size: 26px;
+    font-weight: 800;
+}
+
+.metric span {
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.device-meta {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+@media (max-width: 900px) {
+    .recognition-grid,
+    .device-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .identity-layout {
+        grid-template-columns: 132px minmax(0, 1fr);
+    }
+
+    .person-photo {
+        width: 132px;
+    }
+}
+
+@media (max-width: 560px) {
+    .shell {
+        width: min(100% - 20px, 1180px);
+        padding-top: 18px;
+    }
+
+    .topbar,
+    .section-header,
+    .panel-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    h1 {
+        font-size: 24px;
+    }
+
+    .identity-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .person-photo {
+        width: 100%;
+        max-width: 240px;
+    }
+
+    .form-row > *,
+    .controls > * {
+        flex: 1 1 140px;
+    }
+}

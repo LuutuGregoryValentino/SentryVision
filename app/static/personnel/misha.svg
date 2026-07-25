@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-label="Misha face reference">
+  <rect width="240" height="240" fill="#f0ecff"/>
+  <circle cx="120" cy="104" r="52" fill="#b77952"/>
+  <path d="M62 226c7-45 32-76 58-76s51 31 58 76z" fill="#6d5dfc"/>
+  <path d="M73 92c12-37 34-54 66-49 23 4 37 19 43 45-25-10-64-14-109 4z" fill="#3b2b23"/>
+  <circle cx="101" cy="106" r="5" fill="#111827"/>
+  <circle cx="139" cy="106" r="5" fill="#111827"/>
+  <path d="M102 132c11 7 25 7 36 0" fill="none" stroke="#4a2f20" stroke-width="7" stroke-linecap="round"/>
+</svg>

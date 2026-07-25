@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-label="Faith face reference">
+  <rect width="240" height="240" fill="#fff4e6"/>
+  <circle cx="120" cy="104" r="52" fill="#9c623f"/>
+  <path d="M62 226c9-50 34-76 58-76s49 26 58 76z" fill="#b45309"/>
+  <path d="M68 115c-8-42 16-79 52-79s60 37 52 79c-12-22-29-35-52-35s-40 13-52 35z" fill="#2c1b14"/>
+  <circle cx="101" cy="106" r="5" fill="#111827"/>
+  <circle cx="139" cy="106" r="5" fill="#111827"/>
+  <path d="M101 132c12 9 26 9 38 0" fill="none" stroke="#4a2f20" stroke-width="7" stroke-linecap="round"/>
+</svg>

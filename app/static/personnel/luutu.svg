@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-label="Luutu face reference">
+  <rect width="240" height="240" fill="#e9f7f8"/>
+  <circle cx="120" cy="104" r="52" fill="#7f5139"/>
+  <path d="M58 226c11-48 36-76 62-76s51 28 62 76z" fill="#0f766e"/>
+  <path d="M69 92c8-34 28-52 58-52 29 0 48 18 55 52-30-16-80-15-113 0z" fill="#211913"/>
+  <circle cx="101" cy="106" r="5" fill="#111827"/>
+  <circle cx="139" cy="106" r="5" fill="#111827"/>
+  <path d="M103 132c10 9 24 9 34 0" fill="none" stroke="#3b251a" stroke-width="7" stroke-linecap="round"/>
+</svg>

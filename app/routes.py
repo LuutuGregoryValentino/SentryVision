@@ -83,7 +83,8 @@ def facial_recognition():
     else:
         return jsonify({"error": "Content-Type must be application/json or multipart/form-data"}), 415
 
-    response, status_code = process_facial_recognition(payload["label"])
+    label = payload.get("label")
+    response, status_code = process_facial_recognition(label)
     if saved_image_name:
         response = {**response, "image_saved": saved_image_name}
 

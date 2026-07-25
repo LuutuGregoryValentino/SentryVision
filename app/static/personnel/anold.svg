@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-label="Anold face reference">
+  <rect width="240" height="240" fill="#eef7f0"/>
+  <circle cx="120" cy="104" r="52" fill="#a56a43"/>
+  <path d="M60 226c10-47 35-74 60-74s50 27 60 74z" fill="#138a52"/>
+  <path d="M70 83c18-34 78-40 99 1 1 11-2 22-7 31-15-20-66-26-96-7-3-8-2-17 4-25z" fill="#17202a"/>
+  <circle cx="101" cy="106" r="5" fill="#111827"/>
+  <circle cx="139" cy="106" r="5" fill="#111827"/>
+  <path d="M103 132c10 8 24 8 34 0" fill="none" stroke="#4a2f20" stroke-width="7" stroke-linecap="round"/>
+</svg>

@@ -10,7 +10,14 @@ UNRECOGNIZED_RESPONSE = {
 
 
 def process_facial_recognition(label):
-    normalized_label = label.strip()
+    normalized_label = (label or "").strip()
+    if not normalized_label:
+        return {
+            "authorization_status": "Unauthorized",
+            "recognized": False,
+            "alert": "No face label provided",
+        }, 200
+
     personnel = Personnel.query.filter_by(label=normalized_label).first()
 
     if personnel is None:
