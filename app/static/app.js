@@ -1,6 +1,7 @@
 const state = {
     stream: null,
     imageBlob: null,
+    captures: [],
 };
 
 const elements = {
@@ -14,30 +15,17 @@ const elements = {
     imageFile: document.querySelector("#image-file"),
     canvas: document.querySelector("#capture-canvas"),
     form: document.querySelector("#recognition-form"),
-    label: document.querySelector("#label-select"),
     runRecognition: document.querySelector("#run-recognition"),
-    recognizedFace: document.querySelector("#recognized-face"),
-    authorizationStatus: document.querySelector("#authorization-status"),
-    personName: document.querySelector("#person-name"),
-    personRole: document.querySelector("#person-role"),
-    personStatus: document.querySelector("#person-status"),
     recognitionMessage: document.querySelector("#recognition-message"),
     deviceGrid: document.querySelector("#device-grid"),
     refreshDevices: document.querySelector("#refresh-devices"),
-};
-
-const faceImages = {
-    Kessie: "/static/personnel/kessie.svg",
-    Anold: "/static/personnel/anold.svg",
-    Faith: "/static/personnel/faith.svg",
-    Misha: "/static/personnel/misha.svg",
-    Luutu: "/static/personnel/luutu.svg",
-    Unknown: "/static/personnel/unknown.svg",
+    captureGallery: document.querySelector("#capture-gallery"),
+    captureCount: document.querySelector("#capture-count"),
 };
 
 function setMessage(message, isError = false) {
     elements.recognitionMessage.textContent = message;
-    elements.recognitionMessage.style.color = isError ? "#b42318" : "#657384";
+    elements.recognitionMessage.style.color = isError ? "#f09a9c" : "#9aa9b8";
 }
 
 function setCapturePreview(src, blob) {
@@ -46,23 +34,29 @@ function setCapturePreview(src, blob) {
     elements.image.hidden = false;
     elements.empty.hidden = true;
     elements.camera.hidden = true;
+    elements.runRecognition.disabled = false;
     elements.captureState.className = "status-dot ready";
+    elements.captureState.setAttribute("aria-label", "Capture ready");
+    console.info("Sentry Vision: image preview ready", { bytes: blob.size, type: blob.type });
 }
 
 async function checkHealth() {
     try {
         const response = await fetch("/api/v1/health/");
         if (!response.ok) throw new Error("API offline");
-        elements.health.textContent = "API Online";
+        elements.health.textContent = "API online";
         elements.health.className = "health-pill ok";
     } catch (error) {
-        elements.health.textContent = "API Offline";
+        elements.health.textContent = "API offline";
         elements.health.className = "health-pill error";
     }
 }
 
 async function startCamera() {
     try {
+        if (state.stream) {
+            state.stream.getTracks().forEach((track) => track.stop());
+        }
         state.stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
         elements.camera.srcObject = state.stream;
         elements.camera.hidden = false;
@@ -70,7 +64,8 @@ async function startCamera() {
         elements.empty.hidden = true;
         elements.capturePhoto.disabled = false;
         elements.captureState.className = "status-dot busy";
-        setMessage("Camera ready.");
+        elements.captureState.setAttribute("aria-label", "Camera active");
+        setMessage("Camera ready. Take a photo when the face is in frame.");
     } catch (error) {
         setMessage("Camera access failed. Upload an image instead.", true);
     }
@@ -90,7 +85,7 @@ function capturePhoto() {
             return;
         }
         setCapturePreview(URL.createObjectURL(blob), blob);
-        setMessage("Frame captured.");
+        setMessage("Frame captured and ready to analyze.");
     }, "image/jpeg", 0.9);
 }
 
@@ -98,62 +93,118 @@ function uploadPreview(event) {
     const file = event.target.files[0];
     if (!file) return;
     setCapturePreview(URL.createObjectURL(file), file);
-    setMessage("Image loaded.");
+    setMessage("Image loaded and ready to analyze.");
 }
 
-function updateIdentity(payload) {
-    const name = payload.name || "Unknown";
-    const role = payload.role || "-";
-    const status = payload.authorization_status || "Unauthorized";
-    const recognized = Boolean(payload.recognized);
+function formatConfidence(value) {
+    const confidence = Number(value);
+    if (!Number.isFinite(confidence)) return "Score —";
+    return `Score ${Math.max(0, Math.min(100, confidence)).toFixed(confidence % 1 ? 1 : 0)}%`;
+}
 
-    elements.personName.textContent = recognized ? name : "Unknown";
-    elements.personRole.textContent = recognized ? role : "-";
-    elements.personStatus.textContent = status;
-    elements.recognizedFace.src = faceImages[recognized ? name : "Unknown"] || faceImages.Unknown;
+function statusForCapture(payload) {
+    if (!payload.recognized) return "Unknown";
+    return payload.authorization_status === "Authorized" ? "Authorized" : "Unauthorized";
+}
 
-    elements.authorizationStatus.textContent = status;
-    elements.authorizationStatus.className = "authorization-badge";
-    if (status === "Authorized") {
-        elements.authorizationStatus.classList.add("authorized");
-    } else if (status === "Unauthorized") {
-        elements.authorizationStatus.classList.add("unauthorized");
-    } else {
-        elements.authorizationStatus.classList.add("neutral");
+function renderCaptures() {
+    elements.captureCount.textContent = `${state.captures.length} capture${state.captures.length === 1 ? "" : "s"}`;
+    if (!state.captures.length) {
+        elements.captureGallery.className = "capture-gallery empty-gallery";
+        elements.captureGallery.innerHTML = `
+            <div class="gallery-empty">
+                <span class="gallery-empty-icon">◌</span>
+                <p>No captures yet</p>
+                <small>Analyzed images will appear here.</small>
+            </div>`;
+        return;
+    }
+
+    elements.captureGallery.className = "capture-gallery";
+    elements.captureGallery.innerHTML = state.captures.map((capture) => `
+        <article class="face-card">
+            <img class="face-image" src="${escapeHtml(capture.imageUrl)}" alt="Captured face for ${escapeHtml(capture.name)}">
+            <div class="face-details">
+                <div class="face-meta">
+                    <p class="face-name">${escapeHtml(capture.name)}</p>
+                    <span class="confidence">${escapeHtml(formatConfidence(capture.confidence))}</span>
+                </div>
+                <span class="face-status ${capture.status.toLowerCase()}">${escapeHtml(capture.status)}</span>
+                <p class="face-time">${escapeHtml(capture.time)}</p>
+            </div>
+        </article>`).join("");
+}
+
+function addCapture(payload) {
+    state.captures.unshift({
+        imageUrl: elements.image.src,
+        name: payload.recognized ? (payload.name || "Possible match") : "Unknown",
+        confidence: payload.confidence,
+        status: statusForCapture(payload),
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    });
+    renderCaptures();
+    console.info("Sentry Vision: capture added to gallery", payload);
+}
+
+function captureFromLog(log) {
+    const recognized = Boolean(log.recognized);
+    return {
+        imageUrl: log.image_url,
+        name: recognized ? (log.personnel?.name || "Possible match") : "Unknown",
+        confidence: log.confidence,
+        status: recognized
+            ? (log.authorization_status === "Authorized" ? "Authorized" : "Unauthorized")
+            : "Unknown",
+        time: formatDate(log.created_at),
+    };
+}
+
+async function loadCaptureHistory() {
+    try {
+        const response = await fetch("/api/v1/detection-logs/?limit=100");
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || "Capture history failed");
+
+        state.captures = payload.logs
+            .filter((log) => log.image_url)
+            .map(captureFromLog);
+        renderCaptures();
+        console.info("Sentry Vision: loaded capture history", { count: state.captures.length });
+    } catch (error) {
+        console.error("Sentry Vision: could not load capture history", error);
+        setMessage("Could not load previous captures.", true);
     }
 }
 
 async function runRecognition(event) {
     event.preventDefault();
+    if (!state.imageBlob) {
+        setMessage("Capture or upload an image first.", true);
+        return;
+    }
+
     elements.runRecognition.disabled = true;
-    setMessage("Checking face...");
+    elements.captureState.className = "status-dot busy";
+    setMessage("Analyzing capture...");
 
     try {
-        let response;
-        if (state.imageBlob) {
-            const formData = new FormData();
-            formData.append("label", elements.label.value);
-            formData.append("image", state.imageBlob, "capture.jpg");
-            response = await fetch("/api/v1/facial-recognition/", {
-                method: "POST",
-                body: formData,
-            });
-        } else {
-            response = await fetch("/api/v1/facial-recognition/", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ label: elements.label.value }),
-            });
-        }
-
+        const formData = new FormData();
+        formData.append("image", state.imageBlob, "capture.jpg");
+        console.info("Sentry Vision: sending image to recognition backend", { bytes: state.imageBlob.size });
+        const response = await fetch("/api/v1/facial-recognition/", {
+            method: "POST",
+            body: formData,
+        });
         const payload = await response.json();
-        if (!response.ok) {
-            throw new Error(payload.error || "Recognition failed");
-        }
+        if (!response.ok) throw new Error(payload.error || "Recognition failed");
 
-        updateIdentity(payload);
-        setMessage(payload.alert || "Recognition complete.");
+        console.info("Sentry Vision: recognition backend response", payload);
+        addCapture(payload);
+        elements.captureState.className = "status-dot ready";
+        setMessage(payload.alert || "Capture added to the gallery.");
     } catch (error) {
+        elements.captureState.className = "status-dot ready";
         setMessage(error.message, true);
     } finally {
         elements.runRecognition.disabled = false;
@@ -172,13 +223,9 @@ function formatMetric(metric) {
 }
 
 function formatDate(dateString) {
-    if (!dateString) {
-        return "-";
-    }
+    if (!dateString) return "-";
     const parsed = Date.parse(dateString);
-    if (Number.isNaN(parsed)) {
-        return dateString;
-    }
+    if (Number.isNaN(parsed)) return dateString;
     return new Date(parsed).toLocaleString();
 }
 
@@ -194,11 +241,8 @@ function escapeHtml(value) {
 function renderDevice(device) {
     const metric = formatMetric(device.metric);
     const metadata = device.metadata || {};
-    const metaText = Object.entries(metadata)
-        .map(([key, value]) => `${key}: ${value}`)
-        .join(" | ");
+    const metaText = Object.entries(metadata).map(([key, value]) => `${key}: ${value}`).join(" | ");
     const stateClass = String(device.status || "").toLowerCase();
-
     return `
         <article class="device-card">
             <header>
@@ -207,9 +251,8 @@ function renderDevice(device) {
             </header>
             <p class="metric">${escapeHtml(metric.value)} <span>${escapeHtml(metric.unit)}</span></p>
             <p class="device-meta"><strong>${escapeHtml(metric.name)}</strong> · Last seen ${escapeHtml(formatDate(device.last_ping))}</p>
-            <p class="device-meta">${escapeHtml(metaText || "No metadata")}</p>
-        </article>
-    `;
+            <p class="device-meta">${escapeHtml(metaText || "No additional telemetry")}</p>
+        </article>`;
 }
 
 async function loadDevices() {
@@ -217,12 +260,10 @@ async function loadDevices() {
     try {
         const response = await fetch("/api/v1/device-status/");
         const payload = await response.json();
-        if (!response.ok) {
-            throw new Error(payload.error || "Device status failed");
-        }
+        if (!response.ok) throw new Error(payload.error || "Device status failed");
         elements.deviceGrid.innerHTML = payload.devices.map(renderDevice).join("");
     } catch (error) {
-        elements.deviceGrid.innerHTML = `<article class="device-card"><p class="device-meta">${error.message}</p></article>`;
+        elements.deviceGrid.innerHTML = `<article class="device-card"><p class="device-meta">${escapeHtml(error.message)}</p></article>`;
     }
 }
 
@@ -232,5 +273,7 @@ elements.imageFile.addEventListener("change", uploadPreview);
 elements.form.addEventListener("submit", runRecognition);
 elements.refreshDevices.addEventListener("click", loadDevices);
 
+renderCaptures();
 checkHealth();
 loadDevices();
+loadCaptureHistory();
