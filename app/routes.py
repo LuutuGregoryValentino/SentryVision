@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import Blueprint, current_app, jsonify, request
 from werkzeug.utils import secure_filename
@@ -13,9 +13,10 @@ def _require_api_key():
     return True
 
 from .extensions import db
+from .facial_recognition import FacialRecognitionModelError, classify_features, classify_image
 from .models import DetectionLog, DeviceStatus, utc_now
 from .schemas import DeviceStatusUpdateSchema, FacialRecognitionSchema
-from .services import process_facial_recognition
+from .services import normalize_output_label, process_facial_recognition
 
 
 api_bp = Blueprint("api", __name__, url_prefix="/api/v1")
@@ -33,11 +34,29 @@ def save_uploaded_image(file_storage):
     os.makedirs(upload_dir, exist_ok=True)
 
     filename = secure_filename(file_storage.filename)
-    timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S%f")
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")
     filename = f"{timestamp}_{filename}"
     destination = os.path.join(upload_dir, filename)
     file_storage.save(destination)
     return destination
+
+
+def _infer_label(payload, saved_image_path=None):
+    if payload.get("label") and payload["label"].strip():
+        return payload["label"], None
+
+    try:
+        if payload.get("features") is not None:
+            inference = classify_features(payload["features"], current_app.config)
+        elif saved_image_path:
+            inference = classify_image(saved_image_path, current_app.config)
+        else:
+            return None, None
+    except FacialRecognitionModelError as exc:
+        return None, {"error": "Facial recognition inference unavailable", "details": str(exc)}
+
+    inference = {**inference, "label": normalize_output_label(inference["label"])}
+    return inference["label"], inference
 
 
 @api_bp.route("/health/", methods=["GET"])
@@ -64,6 +83,7 @@ def telemetry():
 def facial_recognition():
     request_content_type = request.content_type or ""
     saved_image_name = None
+    saved_image_path = None
 
     if request.is_json:
         payload = facial_schema.load(request.get_json())
@@ -83,9 +103,17 @@ def facial_recognition():
     else:
         return jsonify({"error": "Content-Type must be application/json or multipart/form-data"}), 415
 
-    response, status_code = process_facial_recognition(payload["label"])
+    label, inference = _infer_label(payload, saved_image_path)
+    if inference and inference.get("error"):
+        return jsonify(inference), 503
+    if not label:
+        return jsonify({"error": "Detected label, classification, features, or image is required."}), 400
+
+    response, status_code = process_facial_recognition(label)
     if saved_image_name:
-        response = {**response, "image_saved": saved_image_name}
+        response = {**response, "image_received": True, "image_saved": saved_image_name}
+    if inference:
+        response = {**response, "inference": inference}
 
     return jsonify(response), status_code
 
