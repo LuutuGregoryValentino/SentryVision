@@ -27,12 +27,6 @@ PERSONNEL_SEED = [
         "role": "Visitor/Staff",
         "authorization_status": "Unauthorized",
     },
-    {
-        "label": "Luutu",
-        "name": "Luutu",
-        "role": "Visitor/Staff",
-        "authorization_status": "Unauthorized",
-    },
 ]
 
 
