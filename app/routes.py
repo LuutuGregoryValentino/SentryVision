@@ -1,7 +1,7 @@
 import os
 from datetime import datetime, timezone
 
-from flask import Blueprint, current_app, jsonify, request
+from flask import Blueprint, current_app, jsonify, request, send_from_directory
 from werkzeug.utils import secure_filename
 
 
@@ -66,9 +66,7 @@ def facial_recognition():
     saved_image_name = None
     saved_image_path = None
 
-    if request.is_json:
-        payload = facial_schema.load(request.get_json())
-    elif request_content_type.startswith("multipart/form-data"):
+    if request_content_type.startswith("multipart/form-data"):
         if "image" not in request.files:
             return jsonify({"error": "Multipart request must include an image file under the 'image' field."}), 415
 
@@ -82,14 +80,23 @@ def facial_recognition():
 
         payload = facial_schema.load(form_data)
     else:
-        return jsonify({"error": "Content-Type must be application/json or multipart/form-data"}), 415
+        return jsonify({"error": "Content-Type must be multipart/form-data with an image file."}), 415
 
-    label = payload.get("label") or "unknown"
-    response, status_code = process_facial_recognition(label)
+    # Recognition is based on the uploaded image. Legacy client labels are ignored.
+    response, status_code = process_facial_recognition(saved_image_path, saved_image_name)
     if saved_image_name:
-        response = {**response, "image_saved": saved_image_name}
+        response = {
+            **response,
+            "image_url": f"/api/v1/uploads/{saved_image_name}",
+        }
 
     return jsonify(response), status_code
+
+
+@api_bp.route("/uploads/<path:filename>", methods=["GET"])
+def uploaded_image(filename):
+    upload_dir = os.path.join(current_app.instance_path, "uploads")
+    return send_from_directory(upload_dir, filename)
 
 
 @api_bp.route("/device-status/", methods=["GET"])
@@ -132,6 +139,16 @@ def get_detection_logs():
     return jsonify(
         {
             "count": len(logs),
-            "logs": [log.to_dict() for log in logs],
+            "logs": [
+                {
+                    **log.to_dict(),
+                    **(
+                        {"image_url": f"/api/v1/uploads/{log.image_filename}"}
+                        if log.image_filename
+                        else {}
+                    ),
+                }
+                for log in logs
+            ],
         }
     ), 200

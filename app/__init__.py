@@ -1,10 +1,24 @@
 from flask import Flask, jsonify, render_template
 from marshmallow import ValidationError
+from sqlalchemy import inspect, text
 
 from config import Config
 from .extensions import db
 from .routes import api_bp, telemetry_bp
 from .seed import seed_database
+
+
+def ensure_detection_log_columns():
+    """Apply the two small SQLite-compatible columns used by the capture gallery."""
+    columns = {column["name"] for column in inspect(db.engine).get_columns("detection_logs")}
+    required_columns = {
+        "image_filename": "VARCHAR(255)",
+        "confidence": "FLOAT",
+    }
+    with db.engine.begin() as connection:
+        for name, column_type in required_columns.items():
+            if name not in columns:
+                connection.execute(text(f"ALTER TABLE detection_logs ADD COLUMN {name} {column_type}"))
 
 
 def create_app(config_object=Config):
@@ -24,6 +38,7 @@ def create_app(config_object=Config):
         """Create tables and seed personnel and device status rows."""
         with app.app_context():
             db.create_all()
+            ensure_detection_log_columns()
             seed_database()
         print("Database initialized and seeded.")
 
@@ -41,6 +56,6 @@ def create_app(config_object=Config):
 
     with app.app_context():
         db.create_all()
-        seed_database()
+        ensure_detection_log_columns()
 
     return app

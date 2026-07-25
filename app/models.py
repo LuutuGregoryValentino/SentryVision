@@ -41,6 +41,8 @@ class DetectionLog(db.Model):
     alert = db.Column(db.String(255), nullable=True)
     notification_required = db.Column(db.Boolean, default=False, nullable=False)
     personnel_id = db.Column(db.Integer, db.ForeignKey("personnel.id"), nullable=True)
+    image_filename = db.Column(db.String(255), nullable=True)
+    confidence = db.Column(db.Float, nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=utc_now, nullable=False)
 
     personnel = db.relationship("Personnel", backref=db.backref("detection_logs", lazy=True))
@@ -54,6 +56,10 @@ class DetectionLog(db.Model):
             "notification_required": self.notification_required,
             "created_at": self.created_at.isoformat(),
         }
+        if self.image_filename:
+            payload["image_filename"] = self.image_filename
+        if self.confidence is not None:
+            payload["confidence"] = self.confidence
         if self.alert:
             payload["alert"] = self.alert
         if self.personnel:

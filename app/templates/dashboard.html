@@ -12,93 +12,75 @@
             <div>
                 <p class="eyebrow">Sentry Vision</p>
                 <h1>Facial Recognition Console</h1>
+                <p class="subtitle">Live device telemetry and recent camera captures.</p>
             </div>
             <div class="health-pill" id="health-status">Checking API</div>
         </header>
 
-        <section class="recognition-grid" aria-label="Facial recognition result">
-            <article class="panel media-panel">
-                <div class="panel-header">
-                    <div>
-                        <p class="eyebrow">Input</p>
-                        <h2>Taken Image</h2>
-                    </div>
-                    <span class="status-dot idle" id="capture-state"></span>
-                </div>
-
-                <div class="preview-frame">
-                    <video id="camera-stream" autoplay muted playsinline hidden></video>
-                    <img id="captured-image" alt="Taken security camera frame" hidden>
-                    <div class="empty-preview" id="empty-preview">
-                        <span>Camera frame</span>
-                    </div>
-                </div>
-
-                <div class="controls">
-                    <button type="button" id="start-camera">Start Camera</button>
-                    <button type="button" id="capture-photo" disabled>Capture</button>
-                    <label class="file-control">
-                        Upload
-                        <input type="file" id="image-file" accept="image/*">
-                    </label>
-                </div>
-            </article>
-
-            <article class="panel person-panel">
-                <div class="panel-header">
-                    <div>
-                        <p class="eyebrow">Match</p>
-                        <h2>Recognized Face</h2>
-                    </div>
-                    <span class="authorization-badge neutral" id="authorization-status">Waiting</span>
-                </div>
-
-                <div class="identity-layout">
-                    <img class="person-photo" id="recognized-face" src="{{ url_for('static', filename='personnel/unknown.svg') }}" alt="Recognized face image">
-                    <dl class="identity-details">
-                        <div>
-                            <dt>Name</dt>
-                            <dd id="person-name">No match yet</dd>
-                        </div>
-                        <div>
-                            <dt>Role</dt>
-                            <dd id="person-role">-</dd>
-                        </div>
-                        <div>
-                            <dt>Status</dt>
-                            <dd id="person-status">-</dd>
-                        </div>
-                    </dl>
-                </div>
-
-                <form id="recognition-form" class="recognition-form">
-                    <label for="label-select">Detected Label</label>
-                    <div class="form-row">
-                        <select id="label-select" name="label">
-                            <option value="Kessie">Kessie</option>
-                            <option value="Anold">Anold</option>
-                            <option value="Faith">Faith</option>
-                            <option value="Misha">Misha</option>
-                            <option value="Luutu">Luutu</option>
-                            <option value="Unknown">Unknown</option>
-                        </select>
-                        <button type="submit" id="run-recognition">Run Check</button>
-                    </div>
-                </form>
-
-                <p class="message" id="recognition-message" role="status"></p>
-            </article>
-        </section>
-
-        <section class="device-section" aria-label="Device status">
+        <section class="device-section" aria-labelledby="devices-heading">
             <div class="section-header">
                 <div>
-                    <p class="eyebrow">Devices</p>
-                    <h2>Device Status</h2>
+                    <p class="eyebrow">Connected devices</p>
+                    <h2 id="devices-heading">Device Status</h2>
                 </div>
-                <button type="button" id="refresh-devices">Refresh</button>
+                <button type="button" class="quiet-button" id="refresh-devices">Refresh status</button>
             </div>
-            <div class="device-grid" id="device-grid"></div>
+            <div class="device-grid" id="device-grid" aria-live="polite"></div>
+        </section>
+
+        <section class="capture-section" aria-labelledby="captures-heading">
+            <div class="section-header">
+                <div>
+                    <p class="eyebrow">Recognition activity</p>
+                    <h2 id="captures-heading">Captured Faces</h2>
+                </div>
+                <span class="capture-count" id="capture-count">0 captures</span>
+            </div>
+
+            <div class="capture-workspace">
+                <article class="capture-panel">
+                    <div class="panel-header">
+                        <div>
+                            <p class="eyebrow">New capture</p>
+                            <h3>Check a face</h3>
+                        </div>
+                        <span class="status-dot idle" id="capture-state" aria-label="Capture idle"></span>
+                    </div>
+
+                    <div class="preview-frame">
+                        <video id="camera-stream" autoplay muted playsinline hidden></video>
+                        <img id="captured-image" alt="Selected security camera frame" hidden>
+                        <div class="empty-preview" id="empty-preview">
+                            <span>Camera preview</span>
+                            <small>Start the camera or upload an image</small>
+                        </div>
+                    </div>
+
+                    <div class="controls">
+                        <button type="button" class="quiet-button" id="start-camera">Start camera</button>
+                        <button type="button" class="quiet-button" id="capture-photo" disabled>Take photo</button>
+                        <label class="file-control">
+                            Upload image
+                            <input type="file" id="image-file" accept="image/*">
+                        </label>
+                    </div>
+
+                    <form id="recognition-form" class="recognition-form">
+                        <button type="submit" id="run-recognition" disabled>Analyze capture</button>
+                    </form>
+                    <p class="message" id="recognition-message" role="status"></p>
+                </article>
+
+                <div class="gallery-wrap">
+                    <div class="capture-gallery empty-gallery" id="capture-gallery" aria-live="polite">
+                        <div class="gallery-empty">
+                            <span class="gallery-empty-icon">◌</span>
+                            <p>No captures yet</p>
+                            <small>Analyzed images will appear here.</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </section>
     </main>
 
