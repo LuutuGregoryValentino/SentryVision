@@ -10,6 +10,7 @@ from .seed import seed_database
 def create_app(config_object=Config):
     app = Flask(__name__)
     app.config.from_object(config_object)
+    app.config["API_KEY"] = app.config.get("API_KEY") or "e52dc64913f9bbca16f37e4a27af776dee4b797db06e53abe99a9f5bc308e480"
 
     db.init_app(app)
     app.register_blueprint(api_bp)

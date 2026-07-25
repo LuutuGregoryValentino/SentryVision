@@ -10,11 +10,11 @@
 // ==========================================
 //  1. CONFIGURATION & NETWORK SETTINGS
 // ==========================================
-const char* WIFI_SSID     = "SnowChild";
-const char* WIFI_PASSWORD = "ay_caric0";
+const char* WIFI_SSID     = "Kessie";
+const char* WIFI_PASSWORD = "Kessie1011";
 
 // Flask Server API Target
-const char* RECOGNITION_ENDPOINT = "http://192.168.8.100:5000/api/v1/facial-recognition/";
+const char* RECOGNITION_ENDPOINT = "http://10.166.109.71:5000/api/v1/facial-recognition/";
 const char* API_KEY              = "e52dc64913f9bbca16f37e4a27af776dee4b797db06e53abe99a9f5bc308e480";
 
 // Label sent with multipart capture (Authorized names in backend: Kessie, Anold, Faith, Misha)
@@ -115,7 +115,15 @@ void loop() {
 // ==========================================
 
 bool connectWiFi() {
-  if (WiFi.status() == WL_CONNECTED) return true;
+  if (WiFi.status() == WL_CONNECTED) {
+    return true;
+  }
+
+  // Ensure the station is not still trying to connect before reconfiguring.
+  if (WiFi.status() == WL_IDLE_STATUS || WiFi.status() == WL_DISCONNECTED || WiFi.status() == WL_CONNECT_FAILED) {
+    WiFi.disconnect();
+    delay(100);
+  }
 
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);

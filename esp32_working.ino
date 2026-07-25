@@ -8,7 +8,7 @@
 const char* WIFI_SSID     = "Kessie";         // Replace with your Wi-Fi name
 const char* WIFI_PASSWORD = "Kessie1011";     // Replace with your Wi-Fi password
 
-const char* BACKEND_BASE_URL = "http://10.90.190.47:5000"; // Replace with your Flask server IP/URL
+const char* BACKEND_BASE_URL = "http://10.166.109.71:5000"; // Replace with your Flask server IP/URL
 const char* API_KEY          = "e52dc64913f9bbca16f37e4a27af776dee4b797db06e53abe99a9f5bc308e480";   // Replace with your raw key
 
 unsigned long lastHttpPostTime  = 0;

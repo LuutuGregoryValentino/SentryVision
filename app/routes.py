@@ -1,8 +1,13 @@
 import os
 from datetime import datetime, timezone
 
-from flask import Blueprint, current_app, jsonify, request
+from flask import Blueprint, current_app, jsonify, request, send_from_directory
 from werkzeug.utils import secure_filename
+
+from .extensions import db
+from .models import DetectionLog, DeviceStatus, utc_now
+from .schemas import DeviceStatusUpdateSchema, FacialRecognitionSchema
+from .services import process_facial_recognition
 
 
 def _require_api_key():
@@ -11,11 +16,6 @@ def _require_api_key():
     if expected_key and provided_key != expected_key:
         return False
     return True
-
-from .extensions import db
-from .models import DetectionLog, DeviceStatus, utc_now
-from .schemas import DeviceStatusUpdateSchema, FacialRecognitionSchema
-from .services import process_facial_recognition
 
 
 api_bp = Blueprint("api", __name__, url_prefix="/api/v1")
@@ -40,6 +40,16 @@ def save_uploaded_image(file_storage):
     return destination
 
 
+# ==========================================
+#  NEW ROUTE: SERVE UPLOADED IMAGES TO FRONTEND
+# ==========================================
+@api_bp.route("/uploads/<path:filename>", methods=["GET"])
+def serve_upload(filename):
+    """Serves captured images stored in instance/uploads to the frontend."""
+    upload_dir = os.path.join(current_app.instance_path, "uploads")
+    return send_from_directory(upload_dir, filename)
+
+
 @api_bp.route("/health/", methods=["GET"])
 def health_check():
     return jsonify({"status": "ok"}), 200
@@ -62,6 +72,10 @@ def telemetry():
 
 @api_bp.route("/facial-recognition/", methods=["POST"])
 def facial_recognition():
+    # Enforce API Key
+    if not _require_api_key():
+        return jsonify({"error": "Unauthorized"}), 401
+
     request_content_type = request.content_type or ""
     saved_image_name = None
     saved_image_path = None
@@ -85,9 +99,18 @@ def facial_recognition():
         return jsonify({"error": "Content-Type must be application/json or multipart/form-data"}), 415
 
     label = payload.get("label") or "unknown"
-    response, status_code = process_facial_recognition(label)
+    
+    # Process recognition logic, including the saved image path so the response correctly reflects that a file was received
+    response, status_code = process_facial_recognition(label, image_path=saved_image_path)
+
+    # Attach public URL and filename to JSON response for frontend consumption
     if saved_image_name:
-        response = {**response, "image_saved": saved_image_name}
+        image_url = f"{request.host_url.rstrip('/')}/api/v1/uploads/{saved_image_name}"
+        response = {
+            **response,
+            "image_saved": saved_image_name,
+            "image_url": image_url
+        }
 
     return jsonify(response), status_code
 

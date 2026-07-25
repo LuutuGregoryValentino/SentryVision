@@ -24,6 +24,7 @@ class TestFacialRecognitionEndpoint(unittest.TestCase):
                 "image": (io.BytesIO(b"fake-image-data"), "frame.jpg"),
             },
             content_type="multipart/form-data",
+            headers={"X-API-Key": self.app.config["API_KEY"]},
         )
 
         self.assertEqual(response.status_code, 200)
@@ -31,13 +32,15 @@ class TestFacialRecognitionEndpoint(unittest.TestCase):
         self.assertIn("image_saved", payload)
         self.assertIn("image_url", payload)
         self.assertEqual(payload["recognized"], False)
+        self.assertEqual(payload["image_received"], True)
+        self.assertEqual(payload["model_status"], "image_received_ready_for_model")
 
         logs_response = self.client.get("/api/v1/detection-logs/?limit=1")
         self.assertEqual(logs_response.status_code, 200)
         logs = logs_response.get_json()["logs"]
         self.assertEqual(len(logs), 1)
         self.assertEqual(logs[0]["detected_label"], "Unknown")
-        self.assertIn("image_url", logs[0])
+        self.assertNotIn("image_url", logs[0])
 
 
 if __name__ == "__main__":
