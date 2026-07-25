@@ -1,8 +1,12 @@
-from marshmallow import Schema, ValidationError, fields, pre_load, validates_schema
+from marshmallow import EXCLUDE, Schema, ValidationError, fields, pre_load, validates_schema
 
 
 class FacialRecognitionSchema(Schema):
     label = fields.String(load_default=None, allow_none=True)
+    trigger_source = fields.String(load_default=None, allow_none=True)
+
+    class Meta:
+        unknown = EXCLUDE
 
     @pre_load
     def normalize_edge_impulse_payload(self, data, **kwargs):
@@ -26,8 +30,8 @@ class FacialRecognitionSchema(Schema):
     @validates_schema
     def validate_label(self, data, **kwargs):
         label = data.get("label")
-        if label is not None and not str(label).strip():
-            raise ValidationError({"label": ["Detected label cannot be blank."]})
+        if label is not None and not label.strip():
+            raise ValidationError({"label": ["Detected label is required if provided."]})
 
 
 class DeviceStatusUpdateSchema(Schema):

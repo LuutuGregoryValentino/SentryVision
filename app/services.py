@@ -1,3 +1,5 @@
+import os
+
 from .extensions import db
 from .models import DetectionLog, Personnel
 
@@ -9,15 +11,8 @@ UNRECOGNIZED_RESPONSE = {
 }
 
 
-def process_facial_recognition(label):
-    normalized_label = (label or "").strip()
-    if not normalized_label:
-        return {
-            "authorization_status": "Unauthorized",
-            "recognized": False,
-            "alert": "No face label provided",
-        }, 200
-
+def process_facial_recognition(label, image_path=None):
+    normalized_label = (label or "unknown").strip()
     personnel = Personnel.query.filter_by(label=normalized_label).first()
 
     if personnel is None:
@@ -30,16 +25,24 @@ def process_facial_recognition(label):
         )
         db.session.add(log)
         db.session.commit()
-        return dict(UNRECOGNIZED_RESPONSE), 200
+        response = dict(UNRECOGNIZED_RESPONSE)
+    else:
+        log = DetectionLog(
+            detected_label=normalized_label,
+            recognized=True,
+            authorization_status=personnel.authorization_status,
+            notification_required=not personnel.is_authorized,
+            personnel=personnel,
+        )
+        db.session.add(log)
+        db.session.commit()
+        response = personnel.to_detection_response()
 
-    log = DetectionLog(
-        detected_label=normalized_label,
-        recognized=True,
-        authorization_status=personnel.authorization_status,
-        notification_required=not personnel.is_authorized,
-        personnel=personnel,
-    )
-    db.session.add(log)
-    db.session.commit()
+    response["image_received"] = image_path is not None
+    if image_path:
+        response["image_saved"] = os.path.basename(image_path)
+        response["model_status"] = "image_received_ready_for_model"
+    else:
+        response["model_status"] = "no_image_received"
 
-    return personnel.to_detection_response(), 200
+    return response, 200
