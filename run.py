@@ -8,4 +8,5 @@ app = create_app()
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "5000"))
-    app.run(host="0.0.0.0", port=port, debug=os.getenv("FLASK_DEBUG") == "1")
+    # Enable threaded mode so multiple devices can POST concurrently from the LAN
+    app.run(host="0.0.0.0", port=port, debug=os.getenv("FLASK_DEBUG") == "1", threaded=True)
