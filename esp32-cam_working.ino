@@ -11,16 +11,16 @@
 //  1. CONFIGURATION & NETWORK SETTINGS
 // ==========================================
 #ifndef WIFI_SSID_VALUE
-#define WIFI_SSID_VALUE "YOUR_WIFI_SSID"
+#define WIFI_SSID_VALUE "Kessie"
 #endif
 #ifndef WIFI_PASSWORD_VALUE
-#define WIFI_PASSWORD_VALUE "YOUR_WIFI_PASSWORD"
+#define WIFI_PASSWORD_VALUE "Kessie1011"
 #endif
 #ifndef BACKEND_BASE_URL_VALUE
-#define BACKEND_BASE_URL_VALUE "http://YOUR_BACKEND_HOST:5000"
+#define BACKEND_BASE_URL_VALUE "http://10.166.109.71:5000"
 #endif
 #ifndef API_KEY_VALUE
-#define API_KEY_VALUE "YOUR_API_KEY"
+#define API_KEY_VALUE "e52dc64913f9bbca16f37e4a27af776dee4b797db06e53abe99a9f5bc308e480"
 #endif
 
 const char *WIFI_SSID = WIFI_SSID_VALUE;
