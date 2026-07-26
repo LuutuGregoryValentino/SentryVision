@@ -6,7 +6,7 @@ from werkzeug.utils import secure_filename
 
 from .extensions import db
 from .models import DetectionLog, DeviceStatus, utc_now
-from .schemas import DeviceStatusUpdateSchema, FacialRecognitionSchema
+from .schemas import DeviceStatusUpdateSchema
 from .services import process_facial_recognition, upsert_device_status
 
 
@@ -21,7 +21,6 @@ def _require_api_key():
 api_bp = Blueprint("api", __name__, url_prefix="/api/v1")
 telemetry_bp = Blueprint("telemetry", __name__, url_prefix="/api")
 
-facial_schema = FacialRecognitionSchema()
 device_update_schema = DeviceStatusUpdateSchema()
 
 
@@ -91,11 +90,6 @@ def facial_recognition():
         if saved_image_path:
             saved_image_name = os.path.basename(saved_image_path)
 
-        form_data = request.form.to_dict()
-        if "detected_label" in form_data and "label" not in form_data:
-            form_data["label"] = form_data["detected_label"]
-
-        payload = facial_schema.load(form_data)
     else:
         return jsonify({"error": "Content-Type must be multipart/form-data with an image file."}), 415
 

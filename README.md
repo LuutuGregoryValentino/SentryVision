@@ -59,22 +59,28 @@ For no match, return:
 
 `GET /api/v1/device-status/` returns the latest status, metric, and last-seen time for the ESP32-CAM and other connected devices. The dashboard displays these cards at the top of the page.
 
-## Planned backend refactor
+## Facial-recognition backend data flow
 
-The current implementation uses a client-supplied label for its demo logic. Replace that with the following small server flow:
+`POST /api/v1/facial-recognition/` accepts only a `multipart/form-data` image
+under the `image` field. The API key is checked first; any label included in the
+form is ignored. The route saves the original capture in `instance/uploads/`,
+then the recognition service performs this server-side flow:
 
-1. Receive and validate the uploaded image.
-2. Pass the image to the trained facial-recognition model.
-3. Read the possible identity and confidence returned by the model.
-4. If there is no match or confidence is too low, return `Unknown`.
-5. Otherwise, look up the identity in the personnel database and return its authorization status.
-6. Save a simple detection log and return the result to the dashboard.
+```text
+JPEG/PNG upload → Pillow decodes RGB image → resize to 160×160 → float32 / 255
+    → FacialModelForSentryVision.4.lite → six class scores
+    → highest score must be ≥ 75% → Personnel lookup → DetectionLog + JSON response
+```
 
-Keep this as a straightforward Flask service for the demonstration. The dashboard gallery shows captures made during the current browser session; persistent capture history can be added later if needed.
+The TensorFlow Lite model returns six scores but does not embed human-readable
+labels. The backend maps them to `Anold`, `Faith`, `Kessie`, `Luutu`, `Misha`,
+and `Unknown` in `config.py`; confirm that order against the training dataset
+before deployment, and update `FACIAL_MODEL_LABELS` if needed. `Unknown` or a
+score below the configured threshold never receives personnel authorization.
+The returned `confidence` is a percentage.
 
-## Current model note
-
-The model archive currently in this repository is a browser WebAssembly export that accepts precomputed numeric features. The Flask backend now receives each image, stores it, and passes its bytes through the recognition-engine boundary, but it returns `Unknown` with `model_runtime_not_configured` until a server-compatible model export is supplied. A TensorFlow Lite, ONNX, or Python-compatible Edge Impulse deployment is needed before the backend can return real identities and confidence values.
+The old browser/WASM export was removed because Flask cannot execute it and the
+new `.lite` model is now the sole model used by the backend.
 
 ## Setup
 

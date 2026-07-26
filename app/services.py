@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 from flask import current_app
@@ -55,9 +54,20 @@ def upsert_device_status(payload):
     return device
 
 
+def _recognition_engine():
+    engine = current_app.extensions.get("facial_recognition_engine")
+    if engine is None:
+        engine = FacialRecognitionEngine(
+            Path(current_app.config["FACIAL_MODEL_PATH"]),
+            tuple(current_app.config["FACIAL_MODEL_LABELS"]),
+            float(current_app.config["FACIAL_RECOGNITION_THRESHOLD"]),
+        )
+        current_app.extensions["facial_recognition_engine"] = engine
+    return engine
+
+
 def process_facial_recognition(image_path, image_filename=None):
-    model_export = Path(current_app.root_path).parent / "sentry-vision-wasm-browser-simd-v1-impulse-#1.zip"
-    result = FacialRecognitionEngine(model_export).recognize(image_path)
+    result = _recognition_engine().recognize(image_path)
     current_app.logger.info(
         "Recognition engine processed image=%s model_status=%s confidence=%.1f",
         image_filename,
@@ -97,7 +107,7 @@ def process_facial_recognition(image_path, image_filename=None):
 
     response["detected_label"] = normalized_label
     response["image_received"] = True
-    response["image_saved"] = image_filename or os.path.basename(image_path)
+    response["image_saved"] = image_filename or Path(image_path).name
     response["confidence"] = result.confidence
     response["model_status"] = result.model_status
 

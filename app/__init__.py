@@ -25,6 +25,9 @@ def ensure_detection_log_columns():
 
 def create_app(config_object=Config):
     app = Flask(__name__)
+    # Keep application defaults (including model configuration) when tests or
+    # deployments supply a small override object.
+    app.config.from_object(Config)
     app.config.from_object(config_object)
     app.config["API_KEY"] = app.config.get("API_KEY") or os.getenv("API_KEY")
 
