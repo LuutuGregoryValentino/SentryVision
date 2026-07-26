@@ -2,6 +2,7 @@ const state = {
     stream: null,
     imageBlob: null,
     captures: [],
+    suspects: [],
 };
 
 const elements = {
@@ -21,12 +22,14 @@ const elements = {
     deviceGrid: document.querySelector("#device-grid"),
     refreshDevices: document.querySelector("#refresh-devices"),
     captureGallery: document.querySelector("#capture-gallery"),
+    suspectGallery: document.querySelector("#suspect-gallery"),
     captureCount: document.querySelector("#capture-count"),
+    suspectCount: document.querySelector("#suspect-count"),
 };
 
 function setMessage(message, isError = false) {
     elements.recognitionMessage.textContent = message;
-    elements.recognitionMessage.style.color = isError ? "#f09a9c" : "#9aa9b8";
+    elements.recognitionMessage.style.color = isError ? "#b42318" : "#475467";
 }
 
 function setCapturePreview(src, blob) {
@@ -99,13 +102,17 @@ function uploadPreview(event) {
 
 function formatConfidence(value) {
     const confidence = Number(value);
-    if (!Number.isFinite(confidence)) return "Score —";
+    if (!Number.isFinite(confidence)) return "Score -";
     return `Score ${Math.max(0, Math.min(100, confidence)).toFixed(confidence % 1 ? 1 : 0)}%`;
 }
 
 function statusForCapture(payload) {
     if (!payload.recognized) return "Unknown";
     return payload.authorization_status === "Authorized" ? "Authorized" : "Unauthorized";
+}
+
+function isSuspect(payload) {
+    return !payload.recognized || statusForCapture(payload) === "Unknown";
 }
 
 function formatRecognitionMessage(payload) {
@@ -135,21 +142,17 @@ function formatRecognitionMessage(payload) {
     return `${payload.alert || "No face identified"}${scoreText}`;
 }
 
-function renderCaptures() {
-    elements.captureCount.textContent = `${state.captures.length} capture${state.captures.length === 1 ? "" : "s"}`;
-    if (!state.captures.length) {
-        elements.captureGallery.className = "capture-gallery empty-gallery";
-        elements.captureGallery.innerHTML = `
-            <div class="gallery-empty">
-                <span class="gallery-empty-icon">◌</span>
-                <p>No captures yet</p>
-                <small>Analyzed images will appear here.</small>
-            </div>`;
-        return;
-    }
+function renderEmptyLog(title, detail, icon) {
+    return `
+        <div class="gallery-empty">
+            <span class="gallery-empty-icon">${escapeHtml(icon)}</span>
+            <p>${escapeHtml(title)}</p>
+            <small>${escapeHtml(detail)}</small>
+        </div>`;
+}
 
-    elements.captureGallery.className = "capture-gallery";
-    elements.captureGallery.innerHTML = state.captures.map((capture) => `
+function renderCaptureCards(captures) {
+    return captures.map((capture) => `
         <article class="face-card">
             <a class="face-image-link" href="${escapeHtml(capture.imageUrl)}" target="_blank" rel="noopener noreferrer">
                 <img class="face-image" src="${escapeHtml(capture.imageUrl)}" alt="Captured face for ${escapeHtml(capture.name)}">
@@ -166,15 +169,54 @@ function renderCaptures() {
         </article>`).join("");
 }
 
+function renderLog(gallery, captures, emptyTitle, emptyDetail, icon) {
+    const baseClass = gallery.id === "suspect-gallery" ? "capture-gallery suspect-gallery" : "capture-gallery";
+    if (!captures.length) {
+        gallery.className = `${baseClass} empty-gallery`;
+        gallery.innerHTML = renderEmptyLog(emptyTitle, emptyDetail, icon);
+        return;
+    }
+
+    gallery.className = baseClass;
+    gallery.innerHTML = renderCaptureCards(captures);
+}
+
+function renderCaptures() {
+    elements.captureCount.textContent = `${state.captures.length} capture${state.captures.length === 1 ? "" : "s"}`;
+    elements.suspectCount.textContent = `${state.suspects.length} suspect${state.suspects.length === 1 ? "" : "s"}`;
+    renderLog(
+        elements.captureGallery,
+        state.captures,
+        "No recognized captures yet",
+        "Authorized and unauthorized matches will appear here.",
+        "OK",
+    );
+    renderLog(
+        elements.suspectGallery,
+        state.suspects,
+        "No suspects yet",
+        "Unknown or low-confidence faces will appear here.",
+        "?",
+    );
+}
+
 function addCapture(payload) {
     const imageUrl = payload.image_url || elements.image.src;
-    state.captures.unshift({
+    const capture = {
         imageUrl,
-        name: payload.recognized ? (payload.name || "Possible match") : "Unknown",
+        recognized: Boolean(payload.recognized),
+        name: payload.recognized ? (payload.name || "Possible match") : (payload.detected_label || "Unknown"),
         confidence: payload.confidence,
         status: statusForCapture(payload),
         time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    });
+    };
+
+    if (isSuspect(payload)) {
+        state.suspects.unshift(capture);
+    } else {
+        state.captures.unshift(capture);
+    }
+
     renderCaptures();
     console.info("Sentry Vision: capture added to gallery", payload);
 }
@@ -184,7 +226,8 @@ function captureFromLog(log) {
     const imageUrl = log.image_url || (log.image_filename ? `/api/v1/uploads/${log.image_filename}` : "");
     return {
         imageUrl,
-        name: recognized ? (log.personnel?.name || "Possible match") : "Unknown",
+        recognized,
+        name: recognized ? (log.personnel?.name || "Possible match") : (log.detected_label || "Unknown"),
         confidence: log.confidence,
         status: recognized
             ? (log.authorization_status === "Authorized" ? "Authorized" : "Unauthorized")
@@ -199,11 +242,17 @@ async function loadCaptureHistory() {
         const payload = await response.json();
         if (!response.ok) throw new Error(payload.error || "Capture history failed");
 
-        state.captures = payload.logs
+        const captures = payload.logs
             .filter((log) => log.image_url || log.image_filename)
             .map(captureFromLog);
+
+        state.captures = captures.filter((capture) => capture.recognized && capture.status !== "Unknown");
+        state.suspects = captures.filter((capture) => !capture.recognized || capture.status === "Unknown");
         renderCaptures();
-        console.info("Sentry Vision: loaded capture history", { count: state.captures.length });
+        console.info("Sentry Vision: loaded capture history", {
+            captures: state.captures.length,
+            suspects: state.suspects.length,
+        });
     } catch (error) {
         console.error("Sentry Vision: could not load capture history", error);
         setMessage("Could not load previous captures.", true);
@@ -248,9 +297,15 @@ function formatMetric(metric) {
     if (!metric || metric.value === null || metric.value === undefined) {
         return { name: "metric", value: "-", unit: "" };
     }
+
+    const value = Number(metric.value);
+    const formattedValue = metric.unit === "binary"
+        ? String(value ? 1 : 0)
+        : (Number.isInteger(value) ? String(value) : value.toFixed(1));
+
     return {
         name: metric.name || "metric",
-        value: Number.isInteger(metric.value) ? metric.value : Number(metric.value).toFixed(1),
+        value: Number.isFinite(value) ? formattedValue : String(metric.value),
         unit: metric.unit || "",
     };
 }
@@ -271,10 +326,17 @@ function escapeHtml(value) {
         .replaceAll("'", "&#039;");
 }
 
+function metadataText(metadata) {
+    const hiddenKeys = new Set(["source", "motion", "distance", "alarm", "servo_angle", "presence"]);
+    return Object.entries(metadata || {})
+        .filter(([key]) => !hiddenKeys.has(key))
+        .map(([key, value]) => `${key}: ${value}`)
+        .join(" | ");
+}
+
 function renderDevice(device) {
     const metric = formatMetric(device.metric);
-    const metadata = device.metadata || {};
-    const metaText = Object.entries(metadata).map(([key, value]) => `${key}: ${value}`).join(" | ");
+    const metaText = metadataText(device.metadata);
     const stateClass = String(device.status || "").toLowerCase();
     return `
         <article class="device-card">
@@ -283,8 +345,8 @@ function renderDevice(device) {
                 <span class="device-state ${escapeHtml(stateClass)}">${escapeHtml(device.status)}</span>
             </header>
             <p class="metric">${escapeHtml(metric.value)} <span>${escapeHtml(metric.unit)}</span></p>
-            <p class="device-meta"><strong>${escapeHtml(metric.name)}</strong> · Last seen ${escapeHtml(formatDate(device.last_ping))}</p>
-            <p class="device-meta">${escapeHtml(metaText || "No additional telemetry")}</p>
+            <p class="device-meta"><strong>${escapeHtml(metric.name)}</strong> - Last seen ${escapeHtml(formatDate(device.last_ping))}</p>
+            <p class="device-meta">${escapeHtml(metaText || "Live telemetry")}</p>
         </article>`;
 }
 

@@ -1,6 +1,7 @@
 import unittest
 
 from app import create_app
+from app.extensions import db
 from app.models import DeviceStatus
 
 
@@ -65,6 +66,28 @@ class TestTelemetryEndpoint(unittest.TestCase):
         self.assertIsNotNone(rcwl)
         self.assertEqual(rcwl.metric_name, "presence")
         self.assertEqual(rcwl.metric_value, 0.0)
+
+    def test_device_status_hides_buzzer_and_normalizes_sensor_cards(self):
+        with self.app.app_context():
+            db.session.add(DeviceStatus(device_name="Buzzer", status="Online", metric_name="alarm", metric_value=1.0))
+            db.session.add(DeviceStatus(device_name="ESP32-BASE", status="Online", metric_name="distance", metric_value=40.0))
+            db.session.add(DeviceStatus(device_name="RCWL Sensor", status="Online", metric_name="motion", metric_value=1.0))
+            db.session.add(DeviceStatus(device_name="Ultrasonic Sensor", status="Online", metric_name="distance", metric_value=40.0))
+            db.session.commit()
+
+        response = self.client.get("/api/v1/device-status/")
+
+        self.assertEqual(response.status_code, 200)
+        devices = response.get_json()["devices"]
+        device_names = {device["device_name"] for device in devices}
+        self.assertNotIn("Buzzer", device_names)
+        self.assertNotIn("ESP32-BASE", device_names)
+        rcwl = next(device for device in devices if device["device_name"] == "RCWL Sensor")
+        ultrasonic = next(device for device in devices if device["device_name"] == "Ultrasonic Sensor")
+        self.assertEqual(rcwl["metric"]["name"], "presence")
+        self.assertEqual(rcwl["metric"]["value"], 1.0)
+        self.assertEqual(ultrasonic["metric"]["name"], "distance")
+        self.assertEqual(ultrasonic["metric"]["unit"], "cm")
 
 
 if __name__ == "__main__":

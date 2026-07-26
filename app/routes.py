@@ -134,10 +134,25 @@ def get_device_statuses():
         .order_by(DeviceStatus.device_name.asc())
         .all()
     )
+    serialized_devices = []
+    for device in devices:
+        payload = device.to_dict()
+        if payload["device_name"] == "RCWL Sensor":
+            metric_value = payload["metric"]["value"]
+            payload["metric"] = {
+                "name": "presence",
+                "value": 1.0 if metric_value else 0.0,
+                "unit": "binary",
+            }
+        if payload["device_name"] == "Ultrasonic Sensor":
+            payload["metric"]["name"] = "distance"
+            payload["metric"]["unit"] = "cm"
+        serialized_devices.append(payload)
+
     return jsonify(
         {
             "count": len(devices),
-            "devices": [device.to_dict() for device in devices],
+            "devices": serialized_devices,
         }
     ), 200
 
