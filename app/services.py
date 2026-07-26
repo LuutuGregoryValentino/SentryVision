@@ -28,32 +28,74 @@ def _pick_metric(payload):
     return None, None, None
 
 
+def _upsert_device_record(device_name, status, metric_name, metric_value, metric_unit, metadata):
+    device = DeviceStatus.query.filter_by(device_name=device_name).first()
+    if device is None:
+        device = DeviceStatus(device_name=device_name)
+
+    device.status = status or "Online"
+    device.last_ping = utc_now()
+    device.metric_name = metric_name
+    device.metric_value = metric_value
+    device.metric_unit = metric_unit
+    device.metadata_json = metadata
+    db.session.add(device)
+    return device
+
+
 def upsert_device_status(payload):
     device_name = (payload.get("device_name") or payload.get("source") or "ESP32-DEVICE").strip()
     if not device_name:
         device_name = "ESP32-DEVICE"
 
-    device = DeviceStatus.query.filter_by(device_name=device_name).first()
-    if device is None:
-        device = DeviceStatus(device_name=device_name)
-
-    device.status = payload.get("status") or "Online"
-    device.last_ping = utc_now()
-    metric_name, metric_value, metric_unit = _pick_metric(payload)
-    device.metric_name = metric_name
-    device.metric_value = metric_value
-    device.metric_unit = metric_unit
-
-    metadata = dict(payload.get("metadata") or {})
+    status = payload.get("status") or "Online"
+    base_metadata = dict(payload.get("metadata") or {})
     for key in ("motion", "distance", "alarm", "servo_angle", "trigger_source"):
         if key in payload and payload[key] is not None:
-            metadata[key] = payload[key]
-    metadata.setdefault("source", "esp32")
-    device.metadata_json = metadata
+            base_metadata[key] = payload[key]
+    base_metadata.setdefault("source", "esp32")
 
-    db.session.add(device)
+    devices = []
+    if "distance" in payload and payload.get("distance") is not None:
+        devices.append(
+            _upsert_device_record(
+                "Ultrasonic Sensor",
+                status,
+                "distance",
+                payload.get("distance"),
+                "cm",
+                {**base_metadata, "sensor_type": "ultrasonic"},
+            )
+        )
+
+    if "motion" in payload and payload.get("motion") is not None:
+        presence = 1.0 if payload.get("motion") else 0.0
+        devices.append(
+            _upsert_device_record(
+                "RCWL Sensor",
+                status,
+                "presence",
+                presence,
+                "binary",
+                {**base_metadata, "sensor_type": "microwave radar", "presence": int(presence)},
+            )
+        )
+
+    if not devices:
+        metric_name, metric_value, metric_unit = _pick_metric(payload)
+        devices.append(
+            _upsert_device_record(
+                device_name,
+                status,
+                metric_name,
+                metric_value,
+                metric_unit,
+                base_metadata,
+            )
+        )
+
     db.session.commit()
-    return device
+    return devices[0]
 
 
 def process_facial_recognition(image_path, image_filename=None):

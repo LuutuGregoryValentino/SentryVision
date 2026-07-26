@@ -127,7 +127,13 @@ def facial_recognition():
 
 @api_bp.route("/device-status/", methods=["GET"])
 def get_device_statuses():
-    devices = DeviceStatus.query.order_by(DeviceStatus.device_name.asc()).all()
+    hidden_devices = {"Buzzer", "ESP32-BASE"}
+    devices = (
+        DeviceStatus.query
+        .filter(~DeviceStatus.device_name.in_(hidden_devices))
+        .order_by(DeviceStatus.device_name.asc())
+        .all()
+    )
     return jsonify(
         {
             "count": len(devices),
