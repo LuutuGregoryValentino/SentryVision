@@ -7,7 +7,7 @@ from werkzeug.utils import secure_filename
 from .extensions import db
 from .models import DetectionLog, DeviceStatus, utc_now
 from .schemas import DeviceStatusUpdateSchema, FacialRecognitionSchema
-from .services import process_facial_recognition
+from .services import process_facial_recognition, upsert_device_status
 
 
 def _require_api_key():
@@ -61,8 +61,11 @@ def telemetry():
         return jsonify({"error": "Unauthorized"}), 401
 
     payload = request.get_json(silent=True) or {}
+    upsert_device_status(payload)
+
     return jsonify({
         "status": "ok",
+        "device_name": payload.get("device_name") or "ESP32-DEVICE",
         "motion": payload.get("motion", False),
         "distance": payload.get("distance"),
         "alarm": payload.get("alarm", False),
@@ -150,16 +153,6 @@ def get_detection_logs():
     return jsonify(
         {
             "count": len(logs),
-            "logs": [
-                {
-                    **log.to_dict(),
-                    **(
-                        {"image_url": f"/api/v1/uploads/{log.image_filename}"}
-                        if log.image_filename
-                        else {}
-                    ),
-                }
-                for log in logs
-            ],
+            "logs": [log.to_dict() for log in logs],
         }
     ), 200

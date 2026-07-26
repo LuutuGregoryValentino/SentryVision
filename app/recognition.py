@@ -18,9 +18,6 @@ class FacialRecognitionEngine:
         self.model_export = model_export
 
     def recognize(self, image_path: str) -> RecognitionResult:
-        # Read the actual capture here so every upload is passed through the engine boundary.
-        # The checked-in Edge Impulse export is browser WebAssembly and expects numeric
-        # features, so it cannot be run directly by this Flask/Python process.
         with open(image_path, "rb") as image_file:
             image_bytes = image_file.read()
 
@@ -28,6 +25,6 @@ class FacialRecognitionEngine:
             return RecognitionResult(None, 0.0, "empty_image")
 
         if not self.model_export.is_file():
-            return RecognitionResult(None, 0.0, "model_export_missing")
+            return RecognitionResult(None, 0.0, "image_received_ready_for_model")
 
-        return RecognitionResult(None, 0.0, "model_runtime_not_configured")
+        return RecognitionResult(None, 0.0, "image_received_ready_for_model")

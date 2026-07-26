@@ -17,6 +17,7 @@ const elements = {
     form: document.querySelector("#recognition-form"),
     runRecognition: document.querySelector("#run-recognition"),
     recognitionMessage: document.querySelector("#recognition-message"),
+    dashboardSummary: document.querySelector("#dashboard-summary"),
     deviceGrid: document.querySelector("#device-grid"),
     refreshDevices: document.querySelector("#refresh-devices"),
     captureGallery: document.querySelector("#capture-gallery"),
@@ -153,8 +154,9 @@ function addCapture(payload) {
 
 function captureFromLog(log) {
     const recognized = Boolean(log.recognized);
+    const imageUrl = log.image_url || (log.image_filename ? `/api/v1/uploads/${log.image_filename}` : "");
     return {
-        imageUrl: log.image_url,
+        imageUrl,
         name: recognized ? (log.personnel?.name || "Possible match") : "Unknown",
         confidence: log.confidence,
         status: recognized
@@ -265,9 +267,13 @@ async function loadDevices() {
         const response = await fetch("/api/v1/device-status/");
         const payload = await response.json();
         if (!response.ok) throw new Error(payload.error || "Device status failed");
-        elements.deviceGrid.innerHTML = payload.devices.map(renderDevice).join("");
+        const devices = payload.devices || [];
+        elements.deviceGrid.innerHTML = devices.map(renderDevice).join("");
+        const label = devices.length === 1 ? "device" : "devices";
+        elements.dashboardSummary.textContent = `${devices.length} ${label} currently reporting from the backend.`;
     } catch (error) {
         elements.deviceGrid.innerHTML = `<article class="device-card"><p class="device-meta">${escapeHtml(error.message)}</p></article>`;
+        elements.dashboardSummary.textContent = "Waiting for live backend telemetry...";
     }
 }
 

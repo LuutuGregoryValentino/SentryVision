@@ -5,11 +5,23 @@
 // ==========================================
 // 📌 NETWORK & WEB APP CONFIGURATION
 // ==========================================
-const char* WIFI_SSID     = "Kessie";         // Replace with your Wi-Fi name
-const char* WIFI_PASSWORD = "Kessie1011";     // Replace with your Wi-Fi password
+#ifndef WIFI_SSID_VALUE
+#define WIFI_SSID_VALUE "YOUR_WIFI_SSID"
+#endif
+#ifndef WIFI_PASSWORD_VALUE
+#define WIFI_PASSWORD_VALUE "YOUR_WIFI_PASSWORD"
+#endif
+#ifndef BACKEND_BASE_URL_VALUE
+#define BACKEND_BASE_URL_VALUE "http://YOUR_BACKEND_HOST:5000"
+#endif
+#ifndef API_KEY_VALUE
+#define API_KEY_VALUE "YOUR_API_KEY"
+#endif
 
-const char* BACKEND_BASE_URL = "http://10.166.109.71:5000"; // Replace with your Flask server IP/URL
-const char* API_KEY          = "e52dc64913f9bbca16f37e4a27af776dee4b797db06e53abe99a9f5bc308e480";   // Replace with your raw key
+const char* WIFI_SSID     = WIFI_SSID_VALUE;
+const char* WIFI_PASSWORD = WIFI_PASSWORD_VALUE;
+const char* BACKEND_BASE_URL = BACKEND_BASE_URL_VALUE;
+const char* API_KEY = API_KEY_VALUE;
 
 unsigned long lastHttpPostTime  = 0;
 const int httpPostInterval      = 1000; // Throttle cloud telemetry to 1 second
@@ -68,7 +80,7 @@ bool checkMotion();
 void streamGuiLog(bool motionDetected, float distanceCm);
 void handleSystemStates(bool motionDetected, float distanceCm);
 void sendTelemetryOnline(bool motionDetected, float distanceCm, bool isAlarm, int angle);
-void sendFacialRecognitionTrigger(String detectedLabel);
+void triggerCameraCapture();
 void maintainWiFiConnection();
 
 // ==========================================
@@ -141,10 +153,16 @@ void sendTelemetryOnline(bool motionDetected, float distanceCm, bool isAlarm, in
     http.addHeader("X-API-Key", API_KEY); 
 
     String jsonPayload = "{";
+    jsonPayload += "\"device_name\":\"ESP32-BASE\",";
+    jsonPayload += "\"status\":\"Online\",";
     jsonPayload += "\"motion\":" + String(motionDetected ? "true" : "false") + ",";
     jsonPayload += "\"distance\":" + String(distanceCm) + ",";
     jsonPayload += "\"alarm\":" + String(isAlarm ? "true" : "false") + ",";
-    jsonPayload += "\"servo_angle\":" + String(angle);
+    jsonPayload += "\"servo_angle\":" + String(angle) + ",";
+    jsonPayload += "\"metric_name\":\"distance\",";
+    jsonPayload += "\"metric_value\":" + String(distanceCm) + ",";
+    jsonPayload += "\"metric_unit\":\"cm\",";
+    jsonPayload += "\"metadata\":{\"source\":\"esp32-base\",\"motion\":" + String(motionDetected ? "true" : "false") + ",\"alarm\":" + String(isAlarm ? "true" : "false") + "}";
     jsonPayload += "}";
 
     int httpResponseCode = http.POST(jsonPayload);
@@ -157,29 +175,10 @@ void sendTelemetryOnline(bool motionDetected, float distanceCm, bool isAlarm, in
   }
 }
 
-void sendFacialRecognitionTrigger(String detectedLabel) {
-  if (WiFi.status() != WL_CONNECTED) return;
-
-  HTTPClient http;
-  http.setTimeout(800);
-
-  String endpoint = String(BACKEND_BASE_URL) + "/api/v1/facial-recognition/";
-
-  if (http.begin(endpoint)) {
-    http.addHeader("Content-Type", "application/json");
-    http.addHeader("X-API-Key", API_KEY);
-
-    String jsonPayload = "{\"label\":\"" + detectedLabel + "\"}";
-
-    int httpResponseCode = http.POST(jsonPayload);
-  if (httpResponseCode >= 200 && httpResponseCode < 300) {
-        String response = http.getString();
-      Serial.printf("[FACIAL RECOG] Server Response (%d): %s\n", httpResponseCode, response.c_str());
-    } else {
-      Serial.printf("[FACIAL RECOG] Request failed: %s\n", http.errorToString(httpResponseCode).c_str());
-    }
-    http.end();
-  }
+void triggerCameraCapture() {
+  digitalWrite(CAM_TRIGGER_PIN, HIGH);
+  delay(50);
+  digitalWrite(CAM_TRIGGER_PIN, LOW);
 }
 
 // ==========================================
@@ -265,12 +264,7 @@ void handleSystemStates(bool motionDetected, float distanceCm) {
     // Trigger Camera Pin & Sync with Facial Recog API
     if (millis() - lastCamTriggerTime >= alarmCaptureInterval) {
       lastCamTriggerTime = millis();
-      digitalWrite(CAM_TRIGGER_PIN, HIGH);
-      delay(50);
-      digitalWrite(CAM_TRIGGER_PIN, LOW);
-
-      // Example trigger call; replace "Luutu" with Edge Impulse inferred result string if local
-      sendFacialRecognitionTrigger("Luutu");
+      triggerCameraCapture();
     }
     
     if (millis() - lastBlinkTime >= blinkInterval) {

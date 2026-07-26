@@ -35,6 +35,7 @@ class FacialRecognitionSchema(Schema):
 
 
 class DeviceStatusUpdateSchema(Schema):
+    device_name = fields.String(load_default=None, allow_none=True)
     status = fields.String(required=True)
     metric_name = fields.String(load_default=None, allow_none=True)
     metric_value = fields.Float(load_default=None, allow_none=True)
