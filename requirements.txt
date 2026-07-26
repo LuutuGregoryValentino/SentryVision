@@ -11,6 +11,7 @@ Jinja2==3.1.6
 MarkupSafe==3.0.3
 marshmallow==3.21.3
 packaging==26.2
+Pillow==12.3.0
 SQLAlchemy==2.0.51
 typing_extensions==4.16.0
 Werkzeug==3.1.8

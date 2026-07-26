@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 from flask import current_app
+from sqlalchemy import func
 
 from .extensions import db
 from .models import DetectionLog, DeviceStatus, Personnel, utc_now
@@ -65,8 +66,12 @@ def process_facial_recognition(image_path, image_filename=None):
         result.confidence,
     )
 
-    normalized_label = (result.label or "Unknown").strip()
-    personnel = Personnel.query.filter_by(label=normalized_label).first()
+    detected_label = (result.label or "").strip()
+    personnel = None
+    if detected_label:
+        personnel = Personnel.query.filter(func.lower(Personnel.label) == detected_label.lower()).first()
+
+    normalized_label = personnel.label if personnel else (detected_label.title() if detected_label else "Unknown")
 
     if personnel is None:
         log = DetectionLog(
@@ -100,5 +105,6 @@ def process_facial_recognition(image_path, image_filename=None):
     response["image_saved"] = image_filename or os.path.basename(image_path)
     response["confidence"] = result.confidence
     response["model_status"] = result.model_status
+    response["scores"] = result.scores
 
     return response, 200

@@ -2,7 +2,44 @@ from .extensions import db
 from .models import DeviceStatus, Personnel
 
 
-PERSONNEL_SEED = []
+PERSONNEL_SEED = [
+    {
+        "label": "Kessie",
+        "name": "Kessie",
+        "role": "Administrator/Engineer",
+        "authorization_status": "Authorized",
+    },
+    {
+        "label": "Anold",
+        "name": "Anold",
+        "role": "Administrator/Engineer",
+        "authorization_status": "Authorized",
+    },
+    {
+        "label": "Faith",
+        "name": "Faith",
+        "role": "Visitor/Staff",
+        "authorization_status": "Unauthorized",
+    },
+    {
+        "label": "Greg",
+        "name": "Greg",
+        "role": "Visitor/Staff",
+        "authorization_status": "Unauthorized",
+    },
+    {
+        "label": "Misha",
+        "name": "Misha",
+        "role": "Visitor/Staff",
+        "authorization_status": "Unauthorized",
+    },
+    {
+        "label": "Luutu",
+        "name": "Luutu",
+        "role": "Visitor/Staff",
+        "authorization_status": "Unauthorized",
+    },
+]
 
 
 DEVICE_SEED = []

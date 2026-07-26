@@ -108,6 +108,33 @@ function statusForCapture(payload) {
     return payload.authorization_status === "Authorized" ? "Authorized" : "Unauthorized";
 }
 
+function formatRecognitionMessage(payload) {
+    const confidence = Number(payload.confidence);
+    const scoreText = Number.isFinite(confidence) ? ` (${formatConfidence(confidence)})` : "";
+
+    if (payload.recognized) {
+        return `${payload.name || payload.detected_label || "Match"} - ${payload.authorization_status}${scoreText}`;
+    }
+
+    if (payload.model_status === "low_confidence") {
+        return `No confident match${scoreText}. Try a brighter, centered face capture.`;
+    }
+
+    if (payload.model_status === "invalid_image") {
+        return "The backend received the upload, but it was not a valid JPEG/PNG image.";
+    }
+
+    if (payload.model_status === "node_runtime_not_available") {
+        return "Recognition runtime is unavailable. Install Node.js or add it to PATH.";
+    }
+
+    if (payload.model_status === "pillow_not_installed") {
+        return "Recognition image decoder is missing. Run pip install -r requirements.txt.";
+    }
+
+    return `${payload.alert || "No face identified"}${scoreText}`;
+}
+
 function renderCaptures() {
     elements.captureCount.textContent = `${state.captures.length} capture${state.captures.length === 1 ? "" : "s"}`;
     if (!state.captures.length) {
@@ -173,7 +200,7 @@ async function loadCaptureHistory() {
         if (!response.ok) throw new Error(payload.error || "Capture history failed");
 
         state.captures = payload.logs
-            .filter((log) => log.image_url)
+            .filter((log) => log.image_url || log.image_filename)
             .map(captureFromLog);
         renderCaptures();
         console.info("Sentry Vision: loaded capture history", { count: state.captures.length });
@@ -208,7 +235,7 @@ async function runRecognition(event) {
         console.info("Sentry Vision: recognition backend response", payload);
         addCapture(payload);
         elements.captureState.className = "status-dot ready";
-        setMessage(payload.alert || "Capture added to the gallery.");
+        setMessage(formatRecognitionMessage(payload), !payload.recognized);
     } catch (error) {
         elements.captureState.className = "status-dot ready";
         setMessage(error.message, true);

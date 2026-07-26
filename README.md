@@ -74,7 +74,9 @@ Keep this as a straightforward Flask service for the demonstration. The dashboar
 
 ## Current model note
 
-The model archive currently in this repository is a browser WebAssembly export that accepts precomputed numeric features. The Flask backend now receives each image, stores it, and passes its bytes through the recognition-engine boundary, but it returns `Unknown` with `model_runtime_not_configured` until a server-compatible model export is supplied. A TensorFlow Lite, ONNX, or Python-compatible Edge Impulse deployment is needed before the backend can return real identities and confidence values.
+The Flask backend runs the included Edge Impulse WebAssembly export through Node.js. Uploaded JPEG/PNG images are resized to the model's 160x160 RGB input, classified with the bundled labels, then checked against the personnel database. Scores below the model's confidence threshold, or the model's `unknown` class, are returned as `Unknown`.
+
+The bundled model labels are `anold`, `faith`, `greg`, `kessie`, `misha`, and `unknown`. If you expect another person such as `Luutu` to match, retrain/export the model with that class included.
 
 ## Setup
 
@@ -87,3 +89,5 @@ python run.py
 ```
 
 The development service runs on `http://localhost:5000`.
+
+Node.js must be available on `PATH` for the bundled WebAssembly model runner.

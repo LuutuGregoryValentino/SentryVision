@@ -1,5 +1,6 @@
 import os
 from datetime import datetime, timezone
+from urllib.parse import urlsplit
 
 from flask import Blueprint, current_app, jsonify, request, send_from_directory, url_for
 from werkzeug.utils import secure_filename
@@ -10,12 +11,23 @@ from .schemas import DeviceStatusUpdateSchema, FacialRecognitionSchema
 from .services import process_facial_recognition, upsert_device_status
 
 
-def _require_api_key():
+def _is_same_origin_dashboard_request():
+    origin = request.headers.get("Origin") or request.headers.get("Referer")
+    if not origin:
+        return False
+
+    parsed_origin = urlsplit(origin)
+    return parsed_origin.netloc == request.host
+
+
+def _require_api_key(allow_same_origin=False):
     expected_key = current_app.config.get("API_KEY")
     provided_key = request.headers.get("X-API-Key")
-    if expected_key and provided_key != expected_key:
-        return False
-    return True
+    if not expected_key or provided_key == expected_key:
+        return True
+    if allow_same_origin and _is_same_origin_dashboard_request():
+        return True
+    return False
 
 
 api_bp = Blueprint("api", __name__, url_prefix="/api/v1")
@@ -76,7 +88,7 @@ def telemetry():
 @api_bp.route("/facial-recognition/", methods=["POST"])
 def facial_recognition():
     # Enforce API Key
-    if not _require_api_key():
+    if not _require_api_key(allow_same_origin=True):
         return jsonify({"error": "Unauthorized"}), 401
 
     request_content_type = request.content_type or ""
@@ -150,9 +162,16 @@ def get_detection_logs():
     limit = request.args.get("limit", default=50, type=int)
     limit = max(1, min(limit, 200))
     logs = DetectionLog.query.order_by(DetectionLog.created_at.desc()).limit(limit).all()
+    serialized_logs = []
+    for log in logs:
+        payload = log.to_dict()
+        if log.image_filename:
+            payload["image_url"] = url_for("api.serve_upload", filename=log.image_filename)
+        serialized_logs.append(payload)
+
     return jsonify(
         {
             "count": len(logs),
-            "logs": [log.to_dict() for log in logs],
+            "logs": serialized_logs,
         }
     ), 200

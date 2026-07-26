@@ -60,5 +60,6 @@ def create_app(config_object=Config):
     with app.app_context():
         db.create_all()
         ensure_detection_log_columns()
+        seed_database()
 
     return app
