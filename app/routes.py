@@ -127,32 +127,16 @@ def facial_recognition():
 
 @api_bp.route("/device-status/", methods=["GET"])
 def get_device_statuses():
-    hidden_devices = {"Buzzer", "ESP32-BASE"}
     devices = (
         DeviceStatus.query
-        .filter(~DeviceStatus.device_name.in_(hidden_devices))
         .order_by(DeviceStatus.device_name.asc())
         .all()
     )
-    serialized_devices = []
-    for device in devices:
-        payload = device.to_dict()
-        if payload["device_name"] == "RCWL Sensor":
-            metric_value = payload["metric"]["value"]
-            payload["metric"] = {
-                "name": "presence",
-                "value": 1.0 if metric_value else 0.0,
-                "unit": "binary",
-            }
-        if payload["device_name"] == "Ultrasonic Sensor":
-            payload["metric"]["name"] = "distance"
-            payload["metric"]["unit"] = "cm"
-        serialized_devices.append(payload)
 
     return jsonify(
         {
             "count": len(devices),
-            "devices": serialized_devices,
+            "devices": [device.to_dict() for device in devices],
         }
     ), 200
 

@@ -327,11 +327,17 @@ function escapeHtml(value) {
 }
 
 function metadataText(metadata) {
-    const hiddenKeys = new Set(["source", "motion", "distance", "alarm", "servo_angle", "presence"]);
+    const hiddenKeys = new Set(["source"]);
     return Object.entries(metadata || {})
         .filter(([key]) => !hiddenKeys.has(key))
-        .map(([key, value]) => `${key}: ${value}`)
+        .map(([key, value]) => `${key}: ${formatMetadataValue(key, value)}`)
         .join(" | ");
+}
+
+function formatMetadataValue(key, value) {
+    if (typeof value === "boolean") return value ? "yes" : "no";
+    if (key === "servo_angle" && value !== null && value !== undefined) return `${value} deg`;
+    return value;
 }
 
 function renderDevice(device) {
@@ -376,3 +382,4 @@ renderCaptures();
 checkHealth();
 loadDevices();
 loadCaptureHistory();
+setInterval(loadDevices, 1000);
