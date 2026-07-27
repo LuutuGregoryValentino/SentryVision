@@ -28,6 +28,14 @@ def _pick_metric(payload):
     return None, None, None
 
 
+def _pick_controller_metric(payload):
+    if "servo_angle" in payload and payload.get("servo_angle") is not None:
+        return "servo_angle", payload.get("servo_angle"), "degrees"
+    if "alarm" in payload and payload.get("alarm") is not None:
+        return "alarm", 1.0 if payload.get("alarm") else 0.0, "binary"
+    return _pick_metric(payload)
+
+
 def _upsert_device_record(device_name, status, metric_name, metric_value, metric_unit, metadata):
     device = DeviceStatus.query.filter_by(device_name=device_name).first()
     if device is None:
@@ -49,7 +57,7 @@ def upsert_device_status(payload):
         device_name = "ESP32-DEVICE"
 
     status = payload.get("status") or "Online"
-    metric_name, metric_value, metric_unit = _pick_metric(payload)
+    metric_name, metric_value, metric_unit = _pick_controller_metric(payload)
     base_metadata = dict(payload.get("metadata") or {})
     for key in ("motion", "distance", "alarm", "servo_angle", "trigger_source"):
         if key in payload and payload[key] is not None:
@@ -64,6 +72,45 @@ def upsert_device_status(payload):
         metric_unit,
         base_metadata,
     )
+
+    if "distance" in payload and payload.get("distance") is not None:
+        _upsert_device_record(
+            "Ultrasonic Sensor",
+            status,
+            "distance",
+            payload.get("distance"),
+            "cm",
+            {
+                "source": device_name,
+                "sensor_type": "ultrasonic",
+            },
+        )
+
+    if "motion" in payload and payload.get("motion") is not None:
+        _upsert_device_record(
+            "RCWL Sensor",
+            status,
+            "motion",
+            1.0 if payload.get("motion") else 0.0,
+            "binary",
+            {
+                "source": device_name,
+                "sensor_type": "microwave radar",
+            },
+        )
+
+    if "alarm" in payload and payload.get("alarm") is not None:
+        _upsert_device_record(
+            "Buzzer",
+            status,
+            "alarm_state",
+            1.0 if payload.get("alarm") else 0.0,
+            "binary",
+            {
+                "source": device_name,
+                "purpose": "audible alert",
+            },
+        )
 
     db.session.commit()
     return device
