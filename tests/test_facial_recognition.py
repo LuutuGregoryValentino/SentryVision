@@ -1,9 +1,13 @@
 import io
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
+
+import socket
 
 from app import create_app
 from app.recognition import RecognitionResult
+from app.services import send_unauthorized_notification
 
 
 TINY_JPEG = (
@@ -78,6 +82,93 @@ class TestFacialRecognitionEndpoint(unittest.TestCase):
         payload = response.get_json()
         self.assertEqual(payload["recognized"], True)
         self.assertEqual(payload["detected_label"], "Faith")
+
+    @patch("app.services.send_unauthorized_notification")
+    @patch("app.services.FacialRecognitionEngine.recognize")
+    def test_unauthorized_detection_sends_email_notification(self, recognize, send_notification):
+        recognize.return_value = RecognitionResult(None, 64.5, "unknown_class", {"unknown": 64.5})
+
+        response = self.client.post(
+            "/api/v1/facial-recognition/",
+            data={"image": (io.BytesIO(TINY_JPEG), "frame.jpg")},
+            content_type="multipart/form-data",
+            headers={"X-API-Key": self.app.config["API_KEY"]},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertEqual(payload["recognized"], False)
+        self.assertEqual(payload["authorization_status"], "Unknown")
+        send_notification.assert_called_once()
+
+    @patch("app.services.smtplib.SMTP")
+    def test_send_unauthorized_notification_works_outside_request_context(self, smtp_cls):
+        smtp_instance = smtp_cls.return_value.__enter__.return_value
+        self.app.config.update(
+            EMAIL_NOTIFICATION_ENABLED=True,
+            ADMIN_EMAIL="snowchild@gmail.com",
+            MAIL_SERVER="smtp.gmail.com",
+            MAIL_PORT=587,
+            MAIL_USE_TLS=False,
+            MAIL_USERNAME="smtp-user",
+            MAIL_PASSWORD="smtp-password",
+            MAIL_DEFAULT_SENDER="no-reply@example.com",
+            PUBLIC_BASE_URL="http://localhost:5000",
+        )
+
+        with self.app.app_context():
+            log = SimpleNamespace(id=123, detected_label="Unknown", authorization_status="Unknown", confidence=63.2)
+            result = send_unauthorized_notification("instance/uploads/20260730164103106280_frame.jpg", log)
+
+        self.assertTrue(result)
+        smtp_instance.send_message.assert_called_once()
+
+    @patch("app.services._send_via_sendgrid_api")
+    @patch("app.services.smtplib.SMTP")
+    def test_send_unauthorized_notification_falls_back_to_sendgrid_api(self, smtp_cls, api_sender):
+        smtp_cls.side_effect = socket.gaierror("dns failure")
+        api_sender.return_value = True
+        self.app.config.update(
+            EMAIL_NOTIFICATION_ENABLED=True,
+            ADMIN_EMAIL="alerts@example.com",
+            MAIL_SERVER="smtp.sendgrid.net",
+            MAIL_PORT=587,
+            MAIL_USE_TLS=True,
+            MAIL_USERNAME="apikey",
+            MAIL_PASSWORD="smtp-password",
+            MAIL_DEFAULT_SENDER="alerts@example.com",
+            PUBLIC_BASE_URL="http://localhost:5000",
+        )
+
+        with self.app.app_context():
+            log = SimpleNamespace(id=789, detected_label="Unknown", authorization_status="Unknown", confidence=61.4)
+            result = send_unauthorized_notification("instance/uploads/20260730164103106280_frame.jpg", log)
+
+        self.assertTrue(result)
+        api_sender.assert_called_once()
+
+    @patch("app.services.smtplib.SMTP")
+    def test_send_unauthorized_notification_uses_default_sender_as_fallback_recipient(self, smtp_cls):
+        smtp_instance = smtp_cls.return_value.__enter__.return_value
+        self.app.config.update(
+            EMAIL_NOTIFICATION_ENABLED=True,
+            ADMIN_EMAIL="",
+            MAIL_SERVER="smtp.sendgrid.net",
+            MAIL_PORT=587,
+            MAIL_USE_TLS=True,
+            MAIL_USERNAME="apikey",
+            MAIL_PASSWORD="smtp-password",
+            MAIL_DEFAULT_SENDER="alerts@example.com",
+            PUBLIC_BASE_URL="http://localhost:5000",
+        )
+
+        with self.app.app_context():
+            log = SimpleNamespace(id=456, detected_label="Unknown", authorization_status="Unknown", confidence=61.4)
+            result = send_unauthorized_notification("instance/uploads/20260730164103106280_frame.jpg", log)
+
+        self.assertTrue(result)
+        sent_message = smtp_instance.send_message.call_args[0][0]
+        self.assertEqual(sent_message["To"], "alerts@example.com")
 
 
 if __name__ == "__main__":

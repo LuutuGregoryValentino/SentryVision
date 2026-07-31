@@ -125,6 +125,22 @@ def facial_recognition():
     return jsonify(response), status_code
 
 
+@api_bp.route("/notifications/<int:log_id>/<string:action>/", methods=["GET"])
+def notification_action(log_id, action):
+    log = DetectionLog.query.get_or_404(log_id)
+    if action == "alert":
+        log.alert = "Alert requested by admin"
+        log.notification_required = False
+        db.session.commit()
+        return jsonify({"status": "alert_requested", "log_id": log.id}), 200
+    if action == "ignore":
+        log.alert = "Ignored by admin"
+        log.notification_required = False
+        db.session.commit()
+        return jsonify({"status": "ignored", "log_id": log.id}), 200
+    return jsonify({"error": "Unsupported action"}), 400
+
+
 @api_bp.route("/device-status/", methods=["GET"])
 def get_device_statuses():
     devices = (

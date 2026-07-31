@@ -1,7 +1,12 @@
+import json
+import mimetypes
 import os
+import smtplib
+from email.message import EmailMessage
 from pathlib import Path
+from urllib import request as urllib_request
 
-from flask import current_app
+from flask import current_app, url_for
 from sqlalchemy import func
 
 from .extensions import db
@@ -14,6 +19,142 @@ UNRECOGNIZED_RESPONSE = {
     "recognized": False,
     "alert": "No face identified",
 }
+
+
+def _get_message_body(message, subtype):
+    if message.is_multipart():
+        for part in message.walk():
+            if part.get_content_maintype() == "text" and part.get_content_subtype() == subtype:
+                payload = part.get_payload(decode=True)
+                if payload is None:
+                    return part.get_payload()
+                charset = part.get_content_charset() or "utf-8"
+                return payload.decode(charset, errors="replace")
+        return ""
+
+    if message.get_content_type() == f"text/{subtype}":
+        payload = message.get_payload(decode=True)
+        if payload is None:
+            return message.get_payload()
+        charset = message.get_content_charset() or "utf-8"
+        return payload.decode(charset, errors="replace")
+
+    return ""
+
+
+def _send_via_sendgrid_api(message, mail_username, mail_password, sender, recipients):
+    if not mail_username or not mail_password:
+        return False
+
+    url = "https://api.sendgrid.com/v3/mail/send"
+    plain_text = _get_message_body(message, "plain")
+    html_body = _get_message_body(message, "html")
+
+    payload = {
+        "personalizations": [{"to": [{"email": recipient}] for recipient in recipients}],
+        "from": {"email": sender},
+        "subject": message["Subject"],
+        "content": [{"type": "text/plain", "value": plain_text}],
+    }
+    if html_body:
+        payload["content"].append({"type": "text/html", "value": html_body})
+
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib_request.Request(
+        url,
+        data=data,
+        headers={
+            "Authorization": f"Bearer {mail_password}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib_request.urlopen(req, timeout=15) as response:
+            return response.status in {200, 202}
+    except Exception as exc:
+        current_app.logger.exception("SendGrid API fallback failed: %s", exc)
+        return False
+
+
+def send_unauthorized_notification(image_path, log):
+    if not current_app.config.get("EMAIL_NOTIFICATION_ENABLED", False):
+        current_app.logger.info("Email notifications are disabled; skipping unauthorized alert email.")
+        return False
+
+    recipients = [value.strip() for value in (current_app.config.get("ADMIN_EMAIL") or "").split(",") if value.strip()]
+    if not recipients:
+        fallback_sender = current_app.config.get("MAIL_DEFAULT_SENDER")
+        if fallback_sender:
+            recipients = [value.strip() for value in fallback_sender.split(",") if value.strip()]
+        else:
+            current_app.logger.warning("No admin email configured for unauthorized detection notifications.")
+            return False
+
+    mail_server = current_app.config.get("MAIL_SERVER", "localhost")
+    mail_port = int(current_app.config.get("MAIL_PORT", 25))
+    mail_use_tls = str(current_app.config.get("MAIL_USE_TLS", False)).lower() in {"1", "true", "yes", "on"}
+    mail_username = current_app.config.get("MAIL_USERNAME")
+    mail_password = current_app.config.get("MAIL_PASSWORD")
+    sender = current_app.config.get("MAIL_DEFAULT_SENDER") or mail_username or "noreply@sentryvision.local"
+
+    base_url = (current_app.config.get("PUBLIC_BASE_URL") or "http://localhost").rstrip("/")
+    alert_path = f"/api/v1/notifications/{log.id}/alert/"
+    ignore_path = f"/api/v1/notifications/{log.id}/ignore/"
+    alert_url = f"{base_url}{alert_path}"
+    ignore_url = f"{base_url}{ignore_path}"
+
+    subject = "Sentry Vision unauthorized detection"
+    text_body = (
+        f"A new unauthorized detection was recorded on Sentry Vision.\n\n"
+        f"Detected label: {log.detected_label}\n"
+        f"Authorization status: {log.authorization_status}\n"
+        f"Confidence: {log.confidence if log.confidence is not None else 'n/a'}\n\n"
+        f"To alert security now, visit: {alert_url}\n"
+        f"To ignore this event, visit: {ignore_url}"
+    )
+    html_body = f"""<html><body>
+        <p>A new unauthorized detection was recorded on Sentry Vision.</p>
+        <ul>
+            <li><strong>Detected label:</strong> {log.detected_label}</li>
+            <li><strong>Authorization status:</strong> {log.authorization_status}</li>
+            <li><strong>Confidence:</strong> {log.confidence if log.confidence is not None else 'n/a'}</li>
+        </ul>
+        <p><a href="{alert_url}">Alert security now</a></p>
+        <p><a href="{ignore_url}">Ignore this event</a></p>
+    </body></html>"""
+
+    message = EmailMessage()
+    message["Subject"] = subject
+    message["From"] = sender
+    message["To"] = ", ".join(recipients)
+    message.set_content(text_body)
+    message.add_alternative(html_body, subtype="html")
+
+    if image_path and Path(image_path).is_file():
+        guess_type, _ = mimetypes.guess_type(image_path)
+        if guess_type is None:
+            guess_type = "application/octet-stream"
+        maintype, subtype = guess_type.split("/", 1)
+        with open(image_path, "rb") as handle:
+            message.add_attachment(handle.read(), maintype=maintype, subtype=subtype, filename=os.path.basename(image_path))
+
+    try:
+        with smtplib.SMTP(mail_server, mail_port) as smtp:
+            if mail_use_tls:
+                smtp.starttls()
+            if mail_username and mail_password:
+                smtp.login(mail_username, mail_password)
+            smtp.send_message(message)
+    except Exception as exc:
+        current_app.logger.exception("Failed to send unauthorized detection email via SMTP: %s", exc)
+        if mail_username and mail_password:
+            if _send_via_sendgrid_api(message, mail_username, mail_password, sender, recipients):
+                return True
+        return False
+
+    return True
 
 
 def _pick_metric(payload):
@@ -145,6 +286,7 @@ def process_facial_recognition(image_path, image_filename=None):
         )
         db.session.add(log)
         db.session.commit()
+        send_unauthorized_notification(image_path, log)
         response = dict(UNRECOGNIZED_RESPONSE)
     else:
         log = DetectionLog(
@@ -158,6 +300,8 @@ def process_facial_recognition(image_path, image_filename=None):
         )
         db.session.add(log)
         db.session.commit()
+        if log.notification_required:
+            send_unauthorized_notification(image_path, log)
         response = personnel.to_detection_response()
 
     response["detected_label"] = normalized_label

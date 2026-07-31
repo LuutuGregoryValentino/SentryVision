@@ -91,3 +91,22 @@ python run.py
 The development service runs on `http://localhost:5000`.
 
 Node.js must be available on `PATH` for the bundled WebAssembly model runner.
+
+### Unauthorized detection email notifications
+
+To send an email to the admin when an unauthorized or unknown detection occurs, configure these environment variables before starting the app:
+
+```powershell
+$env:EMAIL_NOTIFICATION_ENABLED="true"
+$env:MAIL_SERVER="smtp.sendgrid.net"
+$env:MAIL_PORT="587"
+$env:MAIL_USE_TLS="true"
+$env:MAIL_USERNAME="apikey"
+$env:MAIL_PASSWORD="YOUR_SENDGRID_API_KEY"
+$env:MAIL_DEFAULT_SENDER="you@yourdomain.com"
+$env:PUBLIC_BASE_URL="http://localhost:5000"
+```
+
+The notification recipient is hard-coded to snowchild@gmail.com.
+
+When an unauthorized detection is logged, the app sends an email containing the image attachment plus links to either alert security or ignore the event.
