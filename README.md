@@ -92,6 +92,10 @@ The development service runs on `http://localhost:5000`.
 
 Node.js must be available on `PATH` for the bundled WebAssembly model runner.
 
+## Deployment readiness
+
+A repository-specific deployment guide is available in [DEPLOYMENT.md](DEPLOYMENT.md). It covers the Flask app, the Edge Impulse runtime, environment variables, Gunicorn, and the production service layout used by this project.
+
 ### Unauthorized detection email notifications
 
 To send an email to the admin when an unauthorized or unknown detection occurs, configure these environment variables before starting the app:

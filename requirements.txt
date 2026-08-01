@@ -15,3 +15,4 @@ Pillow==12.3.0
 SQLAlchemy==2.0.51
 typing_extensions==4.16.0
 Werkzeug==3.1.8
+gunicorn==23.0.0

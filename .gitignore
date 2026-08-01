@@ -4,3 +4,10 @@ __pycache__/
 venv/
 instance/
 .env
+.env.*
+!.env.example
+*.log
+*.sqlite
+*.db
+.pytest_cache/
+trash/

@@ -169,6 +169,22 @@ def _pick_metric(payload):
     return None, None, None
 
 
+def _normalize_device_name(device_name):
+    if not device_name:
+        return "ESP32-CAM"
+
+    normalized = str(device_name).strip()
+    if not normalized:
+        return "ESP32-CAM"
+
+    compact = normalized.replace(" ", "").lower()
+    if compact in {"esp32cam", "esp32-cam", "esp32", "esp32base", "esp32-base", "esp32-device", "esp32device"}:
+        return "ESP32-CAM"
+    if compact in {"alarmstatus", "alarm-status", "alarm"}:
+        return "Buzzer"
+    return normalized
+
+
 def _pick_controller_metric(payload):
     if "servo_angle" in payload and payload.get("servo_angle") is not None:
         return "servo_angle", payload.get("servo_angle"), "degrees"
@@ -193,9 +209,7 @@ def _upsert_device_record(device_name, status, metric_name, metric_value, metric
 
 
 def upsert_device_status(payload):
-    device_name = (payload.get("device_name") or payload.get("source") or "ESP32-DEVICE").strip()
-    if not device_name:
-        device_name = "ESP32-DEVICE"
+    device_name = _normalize_device_name(payload.get("device_name") or payload.get("source") or current_app.config.get("DEFAULT_DEVICE_NAME", "ESP32-CAM"))
 
     status = payload.get("status") or "Online"
     metric_name, metric_value, metric_unit = _pick_controller_metric(payload)

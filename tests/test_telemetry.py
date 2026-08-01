@@ -43,9 +43,8 @@ class TestTelemetryEndpoint(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         with self.app.app_context():
-            device = DeviceStatus.query.filter_by(device_name="ESP32-BASE").first()
+            device = DeviceStatus.query.filter_by(device_name="ESP32-CAM").first()
             ultrasonic = DeviceStatus.query.filter_by(device_name="Ultrasonic Sensor").first()
-            rcwl = DeviceStatus.query.filter_by(device_name="RCWL Sensor").first()
             buzzer = DeviceStatus.query.filter_by(device_name="Buzzer").first()
         self.assertIsNotNone(device)
         self.assertEqual(device.status, "Online")
@@ -57,14 +56,11 @@ class TestTelemetryEndpoint(unittest.TestCase):
         self.assertIsNotNone(ultrasonic)
         self.assertEqual(ultrasonic.metric_name, "distance")
         self.assertEqual(ultrasonic.metric_value, 12.5)
-        self.assertIsNotNone(rcwl)
-        self.assertEqual(rcwl.metric_name, "motion")
-        self.assertEqual(rcwl.metric_value, 1.0)
         self.assertIsNotNone(buzzer)
         self.assertEqual(buzzer.metric_name, "alarm_state")
         self.assertEqual(buzzer.metric_value, 1.0)
 
-    def test_motion_false_updates_rcwl_from_live_payload(self):
+    def test_motion_false_updates_esp32cam_from_live_payload(self):
         response = self.client.post(
             "/api/telemetry",
             json={"device_name": "ESP32-BASE", "motion": False, "distance": 80.0},
@@ -73,20 +69,16 @@ class TestTelemetryEndpoint(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         with self.app.app_context():
-            device = DeviceStatus.query.filter_by(device_name="ESP32-BASE").first()
+            device = DeviceStatus.query.filter_by(device_name="ESP32-CAM").first()
             ultrasonic = DeviceStatus.query.filter_by(device_name="Ultrasonic Sensor").first()
-            rcwl = DeviceStatus.query.filter_by(device_name="RCWL Sensor").first()
         self.assertIsNotNone(device)
         self.assertEqual(device.metric_name, "distance")
         self.assertEqual(device.metric_value, 80.0)
         self.assertEqual(device.metadata_json["motion"], False)
         self.assertIsNotNone(ultrasonic)
         self.assertEqual(ultrasonic.metric_value, 80.0)
-        self.assertIsNotNone(rcwl)
-        self.assertEqual(rcwl.metric_name, "motion")
-        self.assertEqual(rcwl.metric_value, 0.0)
 
-    def test_device_status_returns_live_records_without_hiding_or_normalizing(self):
+    def test_device_status_filters_to_relevant_hardware_devices(self):
         with self.app.app_context():
             db.session.add(DeviceStatus(device_name="Buzzer", status="Online", metric_name="alarm", metric_value=1.0))
             db.session.add(DeviceStatus(device_name="ESP32-BASE", status="Online", metric_name="distance", metric_value=40.0))
@@ -100,10 +92,10 @@ class TestTelemetryEndpoint(unittest.TestCase):
         devices = response.get_json()["devices"]
         device_names = {device["device_name"] for device in devices}
         self.assertIn("Buzzer", device_names)
-        self.assertIn("ESP32-BASE", device_names)
-        self.assertIn("RCWL Sensor", device_names)
+        self.assertIn("ESP32-CAM", device_names)
+        self.assertNotIn("RCWL Sensor", device_names)
         self.assertIn("Ultrasonic Sensor", device_names)
-        esp32 = next(device for device in devices if device["device_name"] == "ESP32-BASE")
+        esp32 = next(device for device in devices if device["device_name"] == "ESP32-CAM")
         self.assertEqual(esp32["metric"]["name"], "distance")
         self.assertEqual(esp32["metric"]["value"], 40.0)
 

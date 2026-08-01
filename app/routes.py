@@ -30,6 +30,22 @@ def _require_api_key(allow_same_origin=False):
     return False
 
 
+def _normalize_device_name(device_name):
+    if not device_name:
+        return "ESP32-CAM"
+
+    normalized = str(device_name).strip()
+    if not normalized:
+        return "ESP32-CAM"
+
+    compact = normalized.replace(" ", "").lower()
+    if compact in {"esp32cam", "esp32-cam", "esp32", "esp32base", "esp32-base", "esp32-device", "esp32device"}:
+        return "ESP32-CAM"
+    if compact in {"alarmstatus", "alarm-status", "alarm"}:
+        return "Buzzer"
+    return normalized
+
+
 api_bp = Blueprint("api", __name__, url_prefix="/api/v1")
 telemetry_bp = Blueprint("telemetry", __name__, url_prefix="/api")
 
@@ -143,16 +159,22 @@ def notification_action(log_id, action):
 
 @api_bp.route("/device-status/", methods=["GET"])
 def get_device_statuses():
-    devices = (
-        DeviceStatus.query
-        .order_by(DeviceStatus.device_name.asc())
-        .all()
-    )
+    visible_names = {
+        _normalize_device_name(name)
+        for name in current_app.config.get("VISIBLE_DEVICE_NAMES", ("ESP32-CAM", "Ultrasonic Sensor", "Buzzer"))
+    }
+    devices = []
+    for device in DeviceStatus.query.order_by(DeviceStatus.device_name.asc()).all():
+        display_name = _normalize_device_name(device.device_name)
+        if display_name in visible_names:
+            payload = device.to_dict()
+            payload["device_name"] = display_name
+            devices.append(payload)
 
     return jsonify(
         {
             "count": len(devices),
-            "devices": [device.to_dict() for device in devices],
+            "devices": devices,
         }
     ), 200
 

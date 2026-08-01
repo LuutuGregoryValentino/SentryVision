@@ -41,7 +41,7 @@ class Config:
     JSON_SORT_KEYS = False
     API_KEY = os.getenv("API_KEY")
     EMAIL_NOTIFICATION_ENABLED = os.getenv("EMAIL_NOTIFICATION_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
-    ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", os.getenv("MAIL_FROM_ADDRESS", "snowchild@gmail.com"))
+    ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", os.getenv("MAIL_FROM_ADDRESS", ""))
     MAIL_SERVER = os.getenv("SMTP_HOST", os.getenv("MAIL_SERVER", "smtp.gmail.com"))
     MAIL_PORT = int(os.getenv("SMTP_PORT", os.getenv("MAIL_PORT", "587")))
     MAIL_USE_TLS = os.getenv("SMTP_SECURE", os.getenv("MAIL_USE_TLS", "false")).lower() in {"1", "true", "yes", "on"}
@@ -52,3 +52,9 @@ class Config:
     # Prefer explicit MAIL_DEFAULT_SENDER over MAIL_FROM_ADDRESS if provided.
     MAIL_DEFAULT_SENDER = os.getenv("MAIL_DEFAULT_SENDER", os.getenv("MAIL_FROM_ADDRESS"))
     PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "http://localhost")
+    VISIBLE_DEVICE_NAMES = tuple(
+        name.strip()
+        for name in os.getenv("VISIBLE_DEVICE_NAMES", "ESP32-CAM,Ultrasonic Sensor,Buzzer").split(",")
+        if name.strip()
+    )
+    DEFAULT_DEVICE_NAME = os.getenv("DEFAULT_DEVICE_NAME", "ESP32-CAM")
